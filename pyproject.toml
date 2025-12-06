@@ -13,6 +13,7 @@ dependencies = [
   "gunicorn>=21.2",
   "pydantic>=2.5",
   "requests>=2.31",
+  "Pillow>=10.0",
 ]
 
 [tool.uv]

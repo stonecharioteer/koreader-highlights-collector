@@ -1,8 +1,10 @@
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, Response, send_file
 from .. import db
 from ..models import Book, Highlight, MergedHighlight, MergedHighlightItem, AppConfig, HighlightDevice
 from ..services.openlibrary import fetch_from_url as fetch_ol, search as ol_search
 from ..services.imagestore import store_image_from_url, store_image_from_bytes
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
 
 bp = Blueprint('books', __name__)
 
@@ -257,6 +259,29 @@ def cover_image(book_id: int):
         return ('', 404)
     cfg = AppConfig.query.first()
     rustfs = cfg.rustfs_url if cfg else None
+    # If ?raw=1, proxy the image bytes to ensure same-origin for capture
+    if request.args.get('raw') == '1':
+        try:
+            import requests as _rq
+            r = _rq.get(book.image_url, timeout=10)
+            if r.ok:
+                ct = r.headers.get('Content-Type', 'image/jpeg')
+                try:
+                    current_app.logger.info('cover raw fetch ok: %s bytes from %s', len(r.content), book.image_url)
+                except Exception:
+                    pass
+                return Response(r.content, mimetype=ct)
+            else:
+                current_app.logger.warning('cover raw fetch failed: %s %s', r.status_code, book.image_url)
+        except Exception as e:
+            current_app.logger.warning('cover raw fetch exception: %s for %s', e, book.image_url)
+        # Return a transparent 1x1 PNG as a safe fallback to avoid 404 navigation
+        import base64
+        png_1x1 = base64.b64decode(
+            b'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAuMBgB2c7i0AAAAASUVORK5CYII='
+        )
+        return Response(png_1x1, mimetype='image/png')
+
     if rustfs and not book.image_url.startswith(rustfs.rstrip('/')):
         stored = store_image_from_url(book.image_url, rustfs_base=rustfs)
         if stored:
@@ -265,6 +290,135 @@ def cover_image(book_id: int):
             db.session.commit()
             return redirect(book.image_url)
     return redirect(book.image_url)
+
+
+def _load_font(size: int) -> ImageFont.FreeTypeFont:
+    # Try to load EB Garamond, fall back to default
+    try:
+        # Common path inside some images; otherwise Pillow default will be used
+        return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf", size)
+    except Exception:
+        return ImageFont.load_default()
+
+
+def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, max_width: int, max_lines: int = 12) -> str:
+    words = text.split()
+    lines = []
+    line = ''
+    for w in words:
+        test = (line + ' ' + w).strip()
+        if draw.textlength(test, font=font) <= max_width:
+            line = test
+        else:
+            lines.append(line)
+            line = w
+            if len(lines) >= max_lines:
+                break
+    if line and len(lines) < max_lines:
+        lines.append(line)
+    if len(lines) >= max_lines:
+        # indicate truncation
+        lines[-1] = lines[-1].rstrip('.') + '…'
+    return '\n'.join(lines)
+
+
+@bp.get('/books/<int:book_id>/share/<int:highlight_id>.png')
+def share_highlight(book_id: int, highlight_id: int):
+    """Server-side render a shareable image (PNG) of a highlight.
+    Size: 1200x630 px, with cover in background and styled quote.
+    """
+    book = Book.query.get_or_404(book_id)
+    h = Highlight.query.filter_by(id=highlight_id, book_id=book.id).first_or_404()
+
+    width, height = 1200, 630
+    bg = Image.new('RGB', (width, height), (68, 88, 90))  # Dark Slate Grey base
+
+    # Try to load cover as background
+    cover_img = None
+    try:
+        import requests as _rq
+        r = _rq.get(url_for('books.cover_image', book_id=book.id, raw=1, _external=True), timeout=10)
+        if r.ok:
+            cover_img = Image.open(BytesIO(r.content)).convert('RGB')
+    except Exception:
+        cover_img = None
+
+    if cover_img:
+        # Scale to fill
+        c_w, c_h = cover_img.size
+        scale = max(width / c_w, height / c_h)
+        resized = cover_img.resize((int(c_w * scale), int(c_h * scale)))
+        # center crop
+        x0 = (resized.width - width) // 2
+        y0 = (resized.height - height) // 2
+        bg.paste(resized.crop((x0, y0, x0 + width, y0 + height)), (0, 0))
+
+    # Overlay for contrast (Graphite with alpha)
+    overlay = Image.new('RGBA', (width, height), (51, 46, 40, 160))
+    bg = Image.alpha_composite(bg.convert('RGBA'), overlay)
+
+    # Prepare to draw on composited image
+    draw = ImageDraw.Draw(bg)
+
+    # Quote text
+    quote_font = _load_font(48)
+    meta_font = _load_font(24)
+    margin = 80
+    max_text_width = width - margin * 2
+    text = (h.text or '').strip()
+    # Use a separate context for measuring
+    measure_draw = ImageDraw.Draw(Image.new('RGB', (width, height)))
+    text_wrapped = _wrap_text(measure_draw, text, quote_font, max_text_width)
+    y = 140
+    # Draw opening and closing quotes and text
+    quote_color = (240, 248, 211)  # Light Yellow
+    draw.text((margin, y - 40), '“', font=_load_font(72), fill=quote_color)
+    draw.multiline_text((margin, y), text_wrapped, font=quote_font, fill=quote_color, spacing=8)
+
+    # Footer bar (Emerald)
+    footer_h = 70
+    footer = Image.new('RGBA', (width, footer_h), (102, 185, 126, 255))
+    bg.paste(footer, (0, height - footer_h))
+
+    # Meta text on footer
+    meta_color = (51, 46, 40)  # Graphite
+    meta_y = height - footer_h + 20
+    meta_x = 20
+    title_txt = (book.clean_title or book.raw_title or '').strip()
+    author_txt = (book.clean_authors or book.raw_authors or '').strip()
+    meta_parts = [p for p in [title_txt, author_txt] if p]
+    extras = []
+    if h.page_number:
+      extras.append(f"Page {h.page_number}")
+    if h.chapter:
+      extras.append(h.chapter)
+    if h.datetime:
+      extras.append(h.datetime)
+    if extras:
+        meta_parts.extend(extras)
+    meta_text = ' • '.join(meta_parts)
+    draw.text((meta_x, meta_y), meta_text, font=meta_font, fill=meta_color)
+
+    # Logo at bottom-right
+    try:
+        from pathlib import Path
+        logo_path = Path(current_app.root_path).parent / 'assets' / 'logo.png'
+        if logo_path.exists():
+            logo = Image.open(logo_path).convert('RGBA')
+            # Resize to target height
+            target_h = 40
+            scale = target_h / logo.size[1]
+            logo = logo.resize((int(logo.size[0] * scale), target_h))
+            bg.paste(logo, (width - logo.size[0] - 20, height - footer_h + (footer_h - target_h)//2), logo)
+    except Exception:
+        pass
+
+    # Output PNG
+    out = BytesIO()
+    bg.convert('RGB').save(out, format='PNG')
+    out.seek(0)
+    safe_title = (title_txt or 'quote').replace(' ', '_')
+    return send_file(out, mimetype='image/png', as_attachment=True, download_name=f"{safe_title}-{h.id}.png")
 
 
 @bp.post('/books/<int:book_id>/image-upload')

@@ -149,54 +149,352 @@
     </div>
   </div>
 </form>
-<form method="post" action="{{ url_for('books.book_merge', book_id=book.id) }}">
-  <div class="list-group">
-    {% for h in highlights %}
-      <label class="list-group-item">
-        <div class="d-flex align-items-start">
-          <input type="checkbox" class="form-check-input quote-select" name="highlight_id" value="{{ h.id }}">
-          <div class="flex-grow-1">
-            <div class="quote-card">
-              <p class="quote-text">{{ h.text }}</p>
-              <div class="quote-meta">
-                <span>Page {{ h.page_number }}</span>
-                {% if h.chapter %} • <span>{{ h.chapter }}</span>{% endif %}
-                {% if h.datetime %} • <span>{{ h.datetime }}</span>{% endif %}
-                <span class="ms-2">
-                  {% set t = h.kind or 'highlight' %}
-                  <span class="badge type-badge rounded-pill me-1">
-                    {% if t == 'highlight_empty' %}Empty{% elif t == 'highlight_no_position' %}No Pos{% elif t == 'bookmark' %}Bookmark{% else %}Highlight{% endif %}
-                  </span>
-                </span>
-                <span class="quote-devices ms-1">
-                  {% if h.devices %}
-                    {% for d in h.devices %}
-                      <span class="badge device-badge rounded-pill me-1">{{ d.device_id }}</span>
-                    {% endfor %}
-                  {% else %}
-                    {% if h.device_id %}
-                      <span class="badge device-badge rounded-pill me-1">{{ h.device_id }}</span>
-                    {% endif %}
-                  {% endif %}
-                </span>
+<div class="list-group">
+  {% for h in highlights %}
+    <div class="list-group-item quote-item" role="button" data-bs-toggle="modal" data-bs-target="#quoteModal" data-quote="{{ h.text|e }}" data-page="{{ h.page_number }}" data-chapter="{{ h.chapter }}" data-datetime="{{ h.datetime }}" data-hid="{{ h.id }}">
+      <div class="quote-card">
+        <p class="quote-text">{{ h.text }}</p>
+        <div class="quote-meta">
+          <span>Page {{ h.page_number }}</span>
+          {% if h.chapter %} • <span>{{ h.chapter }}</span>{% endif %}
+          {% if h.datetime %} • <span>{{ h.datetime }}</span>{% endif %}
+          <span class="ms-2">
+            {% set t = h.kind or 'highlight' %}
+            <span class="badge type-badge rounded-pill me-1">
+              {% if t == 'highlight_empty' %}Empty{% elif t == 'highlight_no_position' %}No Pos{% elif t == 'bookmark' %}Bookmark{% else %}Highlight{% endif %}
+            </span>
+          </span>
+          <span class="quote-devices ms-1">
+            {% if h.devices %}
+              {% for d in h.devices %}
+                <span class="badge device-badge rounded-pill me-1">{{ d.device_id }}</span>
+              {% endfor %}
+            {% else %}
+              {% if h.device_id %}
+                <span class="badge device-badge rounded-pill me-1">{{ h.device_id }}</span>
+              {% endif %}
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+  {% if not highlights %}
+    <div class="text-muted">No highlights yet.</div>
+  {% endif %}
+</div>
+
+<!-- Quote Preview Modal -->
+<div class="modal fade" id="quoteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg" id="quoteModalDialog">
+    <div class="modal-content p-0 border-0">
+      <!-- Default layout: background image with overlay -->
+      <div class="position-relative share-panel share-panel-default" id="sharePanelDefault" data-bg="{{ url_for('books.cover_image', book_id=book.id) }}?raw=1" style="background-image: url('{{ url_for('books.cover_image', book_id=book.id) }}?raw=1');">
+        <div class="share-overlay"></div>
+        <div class="share-content p-4">
+          <blockquote class="share-quote mb-3"><span class="quote-marks-before"></span><span id="shareQuoteText"></span><span class="quote-marks-after"></span></blockquote>
+        </div>
+        <div class="share-footer d-flex align-items-center justify-content-between px-3 py-2">
+          <div class="share-meta small">
+            <i class="fa-solid fa-book-open me-1"></i>{{ book.clean_title or book.raw_title }}
+            {% if book.clean_authors or book.raw_authors %} • <i class="fa-solid fa-user-pen me-1"></i>{{ book.clean_authors or book.raw_authors }}{% endif %}
+            <span id="shareMetaExtra"></span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-light px-2 py-1" id="downloadQuoteBtn" title="Download image"><i class="fa-solid fa-download"></i></button>
+            <img src="{{ url_for('assets_file', filename='logo.png') }}" alt="Logo" class="share-footer-logo">
+          </div>
+        </div>
+      </div>
+      <!-- Alternative layout: side-by-side for very long quotes -->
+      <div class="position-relative share-panel share-panel-alt d-none" id="sharePanelAlt">
+        <div class="row g-0 h-100">
+          <div class="col-md-5 share-panel-alt-image" style="background-image: url('{{ url_for('books.cover_image', book_id=book.id) }}?raw=1'); background-size: cover; background-position: center;">
+            <div class="share-overlay-alt"></div>
+          </div>
+          <div class="col-md-7 d-flex flex-column">
+            <div class="share-content-alt flex-grow-1 p-4 overflow-auto">
+              <blockquote class="share-quote-alt mb-0"><span class="quote-marks-before-alt"></span><span id="shareQuoteTextAlt"></span><span class="quote-marks-after-alt"></span></blockquote>
+            </div>
+            <div class="share-footer-alt d-flex align-items-center justify-content-between px-3 py-2">
+              <div class="share-meta-alt small">
+                <i class="fa-solid fa-book-open me-1"></i>{{ book.clean_title or book.raw_title }}
+                {% if book.clean_authors or book.raw_authors %} • <i class="fa-solid fa-user-pen me-1"></i>{{ book.clean_authors or book.raw_authors }}{% endif %}
+                <span id="shareMetaExtraAlt"></span>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary px-2 py-1" id="downloadQuoteBtnAlt" title="Download image"><i class="fa-solid fa-download"></i></button>
+                <img src="{{ url_for('assets_file', filename='logo.png') }}" alt="Logo" class="share-footer-logo-alt">
               </div>
             </div>
           </div>
         </div>
-      </label>
-    {% endfor %}
-    {% if not highlights %}
-      <div class="text-muted">No highlights yet.</div>
-    {% endif %}
+      </div>
+    </div>
   </div>
-  <div class="mb-3 mt-3">
-    <label class="form-label">Merged Text</label>
-    <textarea class="form-control" name="merged_text" rows="4"></textarea>
-  </div>
-  <div class="mb-3">
-    <label class="form-label">Notes (optional)</label>
-    <textarea class="form-control" name="merged_notes" rows="2"></textarea>
-  </div>
-  <button class="btn btn-primary">Create Merged Highlight</button>
-</form>
+
+</div>
+
+<style>
+  /* Default layout - centered quote over background image */
+  .share-panel { min-height: 60vh; background-size: cover; background-position: center; border-radius: 12px; overflow: hidden; }
+  .share-overlay { position: absolute; inset: 0; background: rgba(51,46,40,0.65); backdrop-filter: blur(2px); }
+  .share-content { position: relative; z-index: 2; color: #F0F8D3; display: flex; align-items: center; justify-content: center; min-height: 50vh; }
+  .share-quote { font-size: 1.6rem; line-height: 1.6; font-family: 'EB Garamond', Garamond, serif; transition: font-size 0.2s ease; }
+  @media (min-width: 768px) { .share-quote { font-size: 2rem; } }
+
+  /* Elegant guillemet quote marks - sophisticated European literary style */
+  .quote-marks-before::before { content: '« '; opacity: 0.9; }
+  .quote-marks-after::after { content: ' »'; opacity: 0.9; }
+
+  /* Dynamic font sizing classes */
+  .share-quote.size-medium { font-size: 1.3rem !important; }
+  @media (min-width: 768px) { .share-quote.size-medium { font-size: 1.6rem !important; } }
+  .share-quote.size-small { font-size: 1.1rem !important; line-height: 1.5 !important; }
+  @media (min-width: 768px) { .share-quote.size-small { font-size: 1.3rem !important; } }
+  .share-quote.size-tiny { font-size: 0.95rem !important; line-height: 1.4 !important; }
+  @media (min-width: 768px) { .share-quote.size-tiny { font-size: 1.1rem !important; } }
+
+  .share-footer { position: absolute; left: 0; right: 0; bottom: 0; background: #66B97E; color: #332E28; z-index: 3; }
+  .share-footer .share-footer-logo { height: 28px; width: auto; opacity: 0.9; border-radius: 4px; }
+
+  /* Alternative layout - side by side for very long quotes */
+  .share-panel-alt { min-height: 70vh; border-radius: 12px; overflow: hidden; background: #F0F8D3; }
+  .share-panel-alt-image { min-height: 70vh; position: relative; }
+  .share-overlay-alt { position: absolute; inset: 0; background: rgba(51,46,40,0.2); }
+  .share-content-alt { background: #F0F8D3; color: #332E28; max-height: calc(70vh - 50px); }
+  .share-quote-alt { font-size: 1.2rem; line-height: 1.6; font-family: 'EB Garamond', Garamond, serif; color: #332E28; }
+  @media (min-width: 768px) { .share-quote-alt { font-size: 1.4rem; } }
+  .share-footer-alt { background: #66B97E; color: #332E28; border-top: 2px solid #A8CD74; }
+  .share-footer-logo-alt { height: 28px; width: auto; opacity: 0.9; border-radius: 4px; }
+  .share-meta-alt { color: #332E28; }
+
+  /* Elegant guillemet quote marks for alternative layout */
+  .quote-marks-before-alt::before { content: '« '; opacity: 0.9; }
+  .quote-marks-after-alt::after { content: ' »'; opacity: 0.9; }
+
+  .capture-hidden { visibility: hidden !important; }
+</style>
+
+<!-- html2canvas for client-side export (local copy) -->
+<script src="{{ url_for('static', filename='js/html2canvas.min.js') }}"
+        onload="console.log('html2canvas loaded from local source');"
+        onerror="console.error('Failed to load html2canvas from local source');"></script>
+<script>
+  (function(){
+    const modal = document.getElementById('quoteModal');
+    if(!modal) return;
+    const qText = document.getElementById('shareQuoteText');
+    const qMeta = document.getElementById('shareMetaExtra');
+    const dlBtn = document.getElementById('downloadQuoteBtn');
+    const title = {{ (book.clean_title or book.raw_title)|tojson }};
+
+    // Store current quote ID for download filename
+    let currentQuoteId = null;
+    let useAltLayout = false;
+
+    // Determine which layout to use and apply dynamic font sizing
+    function setupQuoteLayout(text) {
+      const textLength = text.length;
+      const panelDefault = document.getElementById('sharePanelDefault');
+      const panelAlt = document.getElementById('sharePanelAlt');
+      const quoteElem = document.querySelector('.share-quote');
+      const modalDialog = document.getElementById('quoteModalDialog');
+
+      // Character thresholds for sizing
+      // Short: < 200 chars (default 2rem desktop)
+      // Medium: 200-400 chars (1.6rem desktop)
+      // Small: 400-700 chars (1.3rem desktop)
+      // Tiny: 700-1000 chars (1.1rem desktop)
+      // Very long: > 1000 chars (use alternative layout)
+
+      // Reset classes
+      quoteElem.classList.remove('size-medium', 'size-small', 'size-tiny');
+      modalDialog.classList.remove('modal-xl');
+
+      if(textLength > 1000){
+        // Use alternative side-by-side layout
+        useAltLayout = true;
+        panelDefault.classList.add('d-none');
+        panelAlt.classList.remove('d-none');
+        modalDialog.classList.add('modal-xl');
+      } else {
+        // Use default centered layout with dynamic font sizing
+        useAltLayout = false;
+        panelDefault.classList.remove('d-none');
+        panelAlt.classList.add('d-none');
+
+        if(textLength > 700){
+          quoteElem.classList.add('size-tiny');
+        } else if(textLength > 400){
+          quoteElem.classList.add('size-small');
+        } else if(textLength > 200){
+          quoteElem.classList.add('size-medium');
+        }
+      }
+    }
+
+    // Update modal content when opened (always available, regardless of html2canvas)
+    modal.addEventListener('show.bs.modal', function (event) {
+      const trigger = event.relatedTarget;
+      if(!trigger) return;
+
+      const text = trigger.getAttribute('data-quote') || '';
+      const page = trigger.getAttribute('data-page') || '';
+      const chapter = trigger.getAttribute('data-chapter') || '';
+      const date = trigger.getAttribute('data-datetime') || '';
+      currentQuoteId = trigger.getAttribute('data-hid') || null;
+
+      // Determine layout based on text length
+      setupQuoteLayout(text);
+
+      // Update content for both layouts
+      if(qText) qText.textContent = text;
+      const qTextAlt = document.getElementById('shareQuoteTextAlt');
+      if(qTextAlt) qTextAlt.textContent = text;
+
+      // Update metadata for both layouts
+      const qMetaAlt = document.getElementById('shareMetaExtraAlt');
+      let parts = [];
+      if(page) parts.push('Page ' + page);
+      if(chapter) parts.push(chapter);
+      if(date) parts.push(date);
+      const metaText = parts.length ? (' • ' + parts.join(' • ')) : '';
+
+      if(qMeta) qMeta.textContent = metaText;
+      if(qMetaAlt) qMetaAlt.textContent = metaText;
+
+      // Validate background availability
+      const panel = document.querySelector('.share-panel:not(.d-none)');
+      if(panel){
+        const bg = panel.getAttribute('data-bg');
+        if(bg){
+          const testImg = new Image();
+          testImg.onerror = function(){
+            console.warn('Cover image failed to load');
+          };
+          testImg.src = bg + '&_=' + Date.now();
+        }
+      }
+    });
+
+    // Set up download handler - wait for html2canvas to load
+    function setupDownloadHandler(){
+      // Set up both download buttons
+      const buttons = [dlBtn, document.getElementById('downloadQuoteBtnAlt')];
+
+      buttons.forEach(btn => {
+        if(!btn) return;
+
+        btn.addEventListener('click', async function(ev){
+          ev.preventDefault();
+          ev.stopPropagation();
+
+          try {
+            // Get the active panel (visible one)
+            const panel = document.querySelector('.share-panel:not(.d-none)');
+            if(!panel) {
+              console.error('Share panel not found');
+              return;
+            }
+
+            if(typeof html2canvas === 'undefined'){
+              if(window.showAlert) showAlert('html2canvas library not loaded', 'danger');
+              console.error('html2canvas is not available');
+              return;
+            }
+
+          // Hide both buttons during capture
+          buttons.forEach(b => { if(b) b.classList.add('capture-hidden'); });
+
+          let canvas = null;
+          try {
+            // First attempt with background image
+            canvas = await html2canvas(panel, {
+              useCORS: true,
+              allowTaint: false,
+              backgroundColor: null,
+              scale: 2,
+              logging: false
+            });
+          } catch(e) {
+            console.warn('First capture attempt failed:', e);
+            // Fallback: try without background image
+            const prevBg = panel.style.backgroundImage;
+            panel.style.backgroundImage = 'none';
+            try {
+              canvas = await html2canvas(panel, {
+                useCORS: true,
+                allowTaint: false,
+                backgroundColor: '#332E28',
+                scale: 2,
+                logging: false
+              });
+            } catch(e2) {
+              console.error('Second capture attempt failed:', e2);
+              if(window.showAlert) showAlert('Failed to capture image', 'danger');
+            }
+            panel.style.backgroundImage = prevBg;
+          }
+
+          if(canvas){
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            // Filename format: title_quoteID.png or just quoteID.png if no title
+            let filename = '';
+            if(title){
+              filename = title.replace(/[^a-zA-Z0-9_-]/g,'_');
+            }
+            if(currentQuoteId){
+              filename = filename ? (filename + '_' + currentQuoteId) : ('quote_' + currentQuoteId);
+            } else {
+              filename = filename || 'quote';
+            }
+            link.download = filename + '.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+        } catch(err) {
+          console.error('Download error:', err);
+          if(window.showAlert) showAlert('Download failed: ' + err.message, 'danger');
+        } finally {
+          // Show both buttons again
+          buttons.forEach(b => { if(b) b.classList.remove('capture-hidden'); });
+        }
+        });
+      });
+    }
+
+    // Wait for html2canvas and set up download handler
+    if(typeof html2canvas !== 'undefined'){
+      console.log('html2canvas loaded successfully');
+      setupDownloadHandler();
+    } else {
+      // Wait for it to load (check every 100ms, timeout after 10s)
+      console.log('Waiting for html2canvas to load...');
+      let attempts = 0;
+      const checkInterval = setInterval(function(){
+        attempts++;
+        if(typeof html2canvas !== 'undefined'){
+          clearInterval(checkInterval);
+          console.log('html2canvas loaded after', attempts * 100, 'ms');
+          setupDownloadHandler();
+        } else if(attempts > 100){
+          clearInterval(checkInterval);
+          console.error('html2canvas failed to load after 10 seconds');
+          console.error('Try reloading the page');
+          if(window.showAlert) showAlert('Image export not available. Please reload the page.', 'warning');
+          // Disable button
+          if(dlBtn){
+            dlBtn.disabled = true;
+            dlBtn.title = 'Image export unavailable - reload page';
+          }
+        }
+      }, 100);
+    }
+  })();
+</script>
+<!-- (removed duplicate html2canvas handler to avoid navigation issues) -->
 {% endblock %}
