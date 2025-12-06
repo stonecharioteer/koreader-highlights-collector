@@ -104,3 +104,4 @@ class AppConfig(db.Model, TimestampMixin):
     goodreads_api_key = db.Column(db.Text, nullable=True)  # legacy, unused
     ol_app_name = db.Column(db.String(100), nullable=True)
     ol_contact_email = db.Column(db.String(200), nullable=True)
+    rustfs_url = db.Column(db.String(300), nullable=True)

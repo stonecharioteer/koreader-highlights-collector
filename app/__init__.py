@@ -1,5 +1,6 @@
 import os
-from flask import Flask
+from pathlib import Path
+from flask import Flask, render_template, send_from_directory, abort
 import time
 from flask_sqlalchemy import SQLAlchemy
 
@@ -15,6 +16,12 @@ def create_app() -> Flask:
     app.config.setdefault("HIGHLIGHTS_BASE_PATH", os.getenv("HIGHLIGHTS_BASE_PATH", str((os.getcwd() + "/sample-highlights"))))
     app.config.setdefault("CELERY_BROKER_URL", os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672//"))
     app.config.setdefault("CELERY_RESULT_BACKEND", os.getenv("CELERY_RESULT_BACKEND", "rpc://"))
+    app.config.setdefault("RUSTFS_URL", os.getenv("RUSTFS_URL"))
+    # Required for flash messages and sessions. Treat empty as unset.
+    _sk = os.getenv("SECRET_KEY")
+    if not _sk:
+        _sk = "dev-secret-key"
+    app.config["SECRET_KEY"] = _sk
 
     db.init_app(app)
 
@@ -28,12 +35,7 @@ def create_app() -> Flask:
                 db.create_all()
                 # Seed a default source path if DB is empty and config path exists
                 try:
-                    from .models import SourcePath, AppConfig
-                    base = app.config.get("HIGHLIGHTS_BASE_PATH")
-                    if base and not SourcePath.query.first() and os.path.exists(base):
-                        default_label = os.path.basename(os.path.normpath(base)) or None
-                        db.session.add(SourcePath(path=base, enabled=True, device_label=default_label))
-                        db.session.commit()
+                    from .models import AppConfig
                     # Ensure one AppConfig row exists
                     if not AppConfig.query.first():
                         db.session.add(AppConfig())
@@ -55,5 +57,38 @@ def create_app() -> Flask:
     app.register_blueprint(books_bp)
     app.register_blueprint(tasks_bp)
     app.register_blueprint(config_bp)
+
+    # Error pages
+    @app.errorhandler(404)
+    def not_found(e):
+        return render_template('errors/404.html'), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        return render_template('errors/500.html'), 500
+
+    @app.get('/assets/<path:filename>')
+    def assets_file(filename: str):
+        # Serve files from repository-level assets folder, then fallback to repo root
+        repo_root = Path(app.root_path).parent
+        assets_dir = repo_root / 'assets'
+        candidates = [assets_dir / filename, repo_root / filename]
+        for fp in candidates:
+            if fp.exists():
+                return send_from_directory(fp.parent.as_posix(), fp.name)
+        abort(404)
+
+    @app.get('/assets/banner')
+    def assets_banner():
+        # Serve a banner image with flexible extensions
+        repo_root = Path(app.root_path).parent
+        assets_dir = repo_root / 'assets'
+        names = ['banner.png', 'banner.jpg', 'banner.jpeg', 'banner.webp', 'banner.gif', 'banner.svg']
+        for name in names:
+            for base in (assets_dir, repo_root):
+                fp = base / name
+                if fp.exists():
+                    return send_from_directory(fp.parent.as_posix(), fp.name)
+        abort(404)
 
     return app

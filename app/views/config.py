@@ -1,6 +1,8 @@
 from pathlib import Path
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify
+from glob import glob
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash
+from sqlalchemy.exc import IntegrityError
 from .. import db
 from ..models import SourcePath, AppConfig
 
@@ -20,18 +22,67 @@ def index():
         if 'path' in request.form:
             path = (request.form.get('path') or '').strip()
             raw_label = (request.form.get('device_label') or '').strip()
-            device_label = raw_label or (os.path.basename(os.path.normpath(path)) if path else None)
-            if path:
-                sp = SourcePath.query.filter_by(path=path).first()
-                if not sp:
-                    sp = SourcePath(path=path, enabled=True, device_label=device_label)
-                    db.session.add(sp)
+            # Glob expansion: support immediate children with .../*
+            if path.endswith('/*'):
+                base = os.path.normpath(os.path.expanduser(path[:-2]))
+                if not base or not os.path.isdir(base):
+                    flash('Base folder not found. Use a mounted path like /data/highlights', 'danger')
+                    return redirect(url_for('config.index'))
+                added = 0
+                total = 0
+                for full in sorted(glob(os.path.join(base, '*'))):
+                    if not os.path.isdir(full):
+                        continue
+                    total += 1
+                    device_label = raw_label or os.path.basename(full)
+                    exists = SourcePath.query.filter_by(path=os.path.normpath(full)).first()
+                    if exists:
+                        continue
+                    try:
+                        db.session.add(SourcePath(path=os.path.normpath(full), enabled=True, device_label=device_label))
+                        db.session.commit()
+                        added += 1
+                    except IntegrityError:
+                        db.session.rollback()
+                        continue
+                if added:
+                    flash(f'Added {added} of {total} folder(s).', 'success')
+                elif total == 0:
+                    flash('No subfolders found to add.', 'warning')
+                return redirect(url_for('config.index'))
+
+            # Single path
+            path_norm = os.path.normpath(os.path.expanduser(path)) if path else ''
+            device_label = raw_label or (os.path.basename(path_norm) if path_norm else None)
+            if not path_norm or not os.path.isdir(path_norm):
+                flash('Folder not found in container. Use a mounted path like /data/highlights/...', 'danger')
+                return redirect(url_for('config.index'))
+            existing = SourcePath.query.filter_by(path=path_norm).first()
+            if existing:
+                if raw_label:
+                    existing.device_label = raw_label
+                    db.session.add(existing)
                     db.session.commit()
+                return redirect(url_for('config.index'))
+            try:
+                sp = SourcePath(path=path_norm, enabled=True, device_label=device_label)
+                db.session.add(sp)
+                db.session.commit()
+                flash('Source folder added.', 'success')
+            except IntegrityError:
+                db.session.rollback()
+                flash('Folder already configured.', 'warning')
             return redirect(url_for('config.index'))
 
         if 'ol_app_name' in request.form or 'ol_contact_email' in request.form:
             cfg.ol_app_name = (request.form.get('ol_app_name') or '').strip() or None
             cfg.ol_contact_email = (request.form.get('ol_contact_email') or '').strip() or None
+            db.session.add(cfg)
+            db.session.commit()
+            return redirect(url_for('config.index'))
+
+        if 'rustfs_url' in request.form:
+            cfg.rustfs_url = (request.form.get('rustfs_url') or '').strip() or None
             db.session.add(cfg)
             db.session.commit()
             return redirect(url_for('config.index'))
@@ -89,6 +140,7 @@ def toggle(pid: int):
     sp.enabled = not sp.enabled
     db.session.add(sp)
     db.session.commit()
+    # No flash for enable/disable
     return redirect(url_for('config.index'))
 
 

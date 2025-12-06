@@ -6,6 +6,5 @@ def test_index_route_renders():
     client = app.test_client()
     resp = client.get('/')
     assert resp.status_code == 200
-    # Basic smoke check on content
-    assert b'Books' in resp.data
-
+    # Smoke check: landing should render and include CTA buttons
+    assert b'Configure Sources' in resp.data or b'Browse Books' in resp.data

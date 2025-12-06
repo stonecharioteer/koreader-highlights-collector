@@ -14,10 +14,7 @@ RUN pip-compile --quiet --resolver=backtracking --strip-extras --output-file=req
 FROM python:3.11-slim AS runtime
 WORKDIR /app
 
-# Runtime libs for psycopg2-binary typically not required, but safe to include libpq
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev \
- && rm -rf /var/lib/apt/lists/*
+# No system libs required for psycopg[binary]
 
 # Install dependencies from generated requirements.txt
 COPY --from=builder /app/requirements.txt ./requirements.txt

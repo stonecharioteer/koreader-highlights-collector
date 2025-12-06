@@ -49,13 +49,11 @@ def scan_base_path(base_path: Optional[str] = None):
 def scan_all_paths():
     total = 0
     paths = SourcePath.query.filter_by(enabled=True).order_by(SourcePath.path.asc()).all()
-    if not paths:
-        # Fallback to single configured path
-        base = Path(current_app.config['HIGHLIGHTS_BASE_PATH'])
-        total += _scan_base_path_internal(base)
-    else:
+    if paths:
         for sp in paths:
             total += _scan_base_path_internal(Path(sp.path), device_label=sp.device_label if hasattr(sp, 'device_label') else None)
+    else:
+        logger.info("No source paths configured; skipping scan.")
     logger.info("Scanned total %s files across configured paths", total)
     return total
 
@@ -182,3 +180,33 @@ def import_file(path: str, device_id: str = 'unknown'):
     db.session.commit()
     logger.info("Imported %s annotations for %s", imported, book.raw_title or book.clean_title or book.id)
     return imported
+
+
+@celery.task(name='tasks.backfill_images')
+def backfill_images():
+    """Ensure all book images are stored in RustFS and update URLs.
+    Skips books without images or when RustFS is not configured.
+    """
+    from app.models import AppConfig
+    cfg = AppConfig.query.first()
+    rustfs = cfg.rustfs_url if cfg else None
+    if not rustfs:
+        logger.info("No RustFS configured; skipping backfill_images")
+        return 0
+    count = 0
+    books = Book.query.filter(Book.image_url.isnot(None)).all()
+    for b in books:
+        try:
+            if not b.image_url or b.image_url.startswith(rustfs.rstrip('/')):
+                continue
+            stored = store_image_from_url(b.image_url, rustfs_base=rustfs)
+            if stored:
+                b.image_url = stored
+                db.session.add(b)
+                count += 1
+        except Exception as e:
+            logger.warning("Failed backfilling image for book %s: %s", b.id, e)
+    if count:
+        db.session.commit()
+    logger.info("Backfilled %s book image(s) to RustFS", count)
+    return count

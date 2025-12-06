@@ -1,0 +1,13 @@
+{% extends 'layout.html' %}
+{% block title_suffix %} — Home{% endblock %}
+{% block content %}
+<div class="text-center py-4">
+  <img src="{{ url_for('assets_banner') }}" alt="Banner" class="img-fluid mb-4" style="max-height: 320px; width: auto; border-radius: 8px;" onerror="this.style.display='none'">
+  <h1 class="display-6">Welcome</h1>
+  <p class="lead">Manage and merge your KOReader highlights across devices.</p>
+  <div class="d-flex justify-content-center gap-2 mt-3">
+    <a href="{{ url_for('books.index') }}" class="btn btn-primary">Browse Books</a>
+    <a href="{{ url_for('config.index') }}" class="btn btn-outline-secondary">Configure Sources</a>
+  </div>
+</div>
+{% endblock %}

@@ -3,34 +3,70 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Highlights Manager{% endblock %}</title>
+    <title>KOReader Highlights Collector{% block title_suffix %}{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
+      :root {
+        --c-ly: #F0F8D3; /* Light Yellow */
+        --c-wg: #A8CD74; /* Willow Green */
+        --c-dsg: #44585A; /* Dark Slate Grey */
+        --c-em: #66B97E; /* Emerald */
+        --c-gp: #332E28; /* Graphite */
+      }
+      /* Dark mode overrides */
+      [data-theme="dark"] body { background-color: #1f1b17; color: var(--c-ly); }
+      [data-theme="dark"] .navbar-theme { background-color: #2b3a3b !important; border-bottom-color: var(--c-em); }
+      [data-theme="dark"] .btn-outline-secondary { color: var(--c-ly); border-color: #6c757d; }
+      [data-theme="dark"] .btn-outline-secondary:hover { background-color: #6c757d; color: #fff; }
+      [data-theme="dark"] .btn-outline-light { color: var(--c-ly); border-color: var(--c-ly); }
+      [data-theme="dark"] .card, [data-theme="dark"] .list-group-item { background-color: #25211d; color: var(--c-ly); border-color: #3b362f; }
+      [data-theme="dark"] .quote-card { background-color: #25211d; border-color: #3b362f; }
+      [data-theme="dark"] .quote-meta { color: #c9d3c1; }
+      [data-theme="dark"] .table, [data-theme="dark"] .table > :not(caption) > * > * { color: var(--c-ly); background-color: #25211d; border-color: #3b362f; }
+      [data-theme="dark"] .form-control { background-color: #2a2621; color: var(--c-ly); border-color: #3b362f; }
+      [data-theme="dark"] .form-control::placeholder { color: #9aa391; }
+      [data-theme="dark"] footer { color: #b8c2b0 !important; }
+      [data-theme="dark"] footer .link-secondary { color: #b8c2b0 !important; }
+      [data-theme="dark"] footer .link-secondary:hover { color: var(--c-wg) !important; }
       body, .navbar, .btn, .form-control, .table, .list-group-item, .card, h1, h2, h3, h4, h5, h6 {
         font-family: 'EB Garamond', Garamond, Georgia, 'Times New Roman', serif;
       }
-      body { line-height: 1.5; font-size: 1.05rem; }
+      body { line-height: 1.5; font-size: 1.05rem; color: var(--c-gp); }
       .list-group-item { font-size: 1.02rem; }
       .badge { font-family: inherit; }
+      a { color: var(--c-em); }
+      a:hover { color: var(--c-wg); }
+
+      .navbar-theme { background-color: var(--c-dsg) !important; border-bottom: 3px solid var(--c-em); }
+      .navbar-theme .navbar-brand, .navbar-theme .navbar-brand span { color: var(--c-ly) !important; }
+      .navbar-theme .btn.btn-outline-light { color: var(--c-ly); border-color: rgba(240,248,211,0.5); }
+      .navbar-theme .btn.btn-outline-light:hover { background-color: var(--c-wg); color: var(--c-gp); border-color: var(--c-wg); }
+
+      .btn-primary { background-color: var(--c-em); border-color: var(--c-em); }
+      .btn-primary:hover { background-color: var(--c-wg); border-color: var(--c-wg); color: var(--c-gp); }
+      .btn-outline-secondary { color: var(--c-dsg); border-color: var(--c-dsg); }
+      .btn-outline-secondary:hover { background-color: var(--c-dsg); color: #fff; }
+
       .device-badge {
-        background-color: #f3efe9;
-        color: #3a2f2a;
-        border: 1px solid #e1d8cf;
+        background-color: var(--c-ly);
+        color: var(--c-gp);
+        border: 1px solid #dfeac2;
         font-size: 0.8rem;
       }
       .type-badge {
-        background-color: #eef5ff;
-        color: #0b3d91;
-        border: 1px solid #d6e6ff;
+        background-color: #eaf6ef;
+        color: var(--c-em);
+        border: 1px solid #cdebd8;
         font-size: 0.75rem;
       }
 
       /* Pretty quotes */
       .quote-card {
         background: #fff;
-        border: 1px solid #eee;
-        border-left: 4px solid #c6b2a6;
+        border: 1px solid #eef1e6;
+        border-left: 4px solid var(--c-wg);
         border-radius: 10px;
         padding: 0.85rem 1rem 0.85rem 1rem;
         position: relative;
@@ -40,7 +76,7 @@
         position: absolute;
         top: -12px;
         left: 8px;
-        color: #e9e1db;
+        color: #e3efd2;
         font-size: 3.2rem;
         line-height: 1;
         pointer-events: none;
@@ -56,31 +92,76 @@
       }
       .quote-meta {
         margin-top: 0.35rem;
-        color: #6c757d;
+        color: var(--c-dsg);
         font-size: 0.9rem;
       }
-      .quote-devices .badge {
-        background: #faf7f5;
-      }
+      .quote-devices .badge { background: var(--c-ly); }
       /* Align checkbox nicely with quote card */
       .quote-select {
         margin-right: 0.6rem;
         margin-top: 0.1rem;
       }
+      footer .link-secondary { color: var(--c-dsg) !important; }
+      footer .link-secondary:hover { color: var(--c-em) !important; }
     </style>
   </head>
   <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-theme">
       <div class="container-fluid">
-        <a class="navbar-brand" href="{{ url_for('books.index') }}">Highlights</a>
-        <div class="d-flex gap-2">
+        <a class="navbar-brand d-flex align-items-center" href="{{ url_for('books.landing') }}">
+          <img src="{{ url_for('assets_file', filename='logo.png') }}" alt="Logo" style="height:28px; width:auto; border-radius:4px;" onerror="this.style.display='none'">
+        </a>
+        <div class="d-flex gap-2 align-items-center">
+          <a class="btn btn-outline-light btn-sm" href="{{ url_for('books.index') }}">Books</a>
           <a class="btn btn-outline-light btn-sm" href="{{ url_for('config.index') }}">Config</a>
           <a class="btn btn-outline-light btn-sm" href="{{ url_for('tasks.trigger_scan') }}">Scan</a>
+          <button id="themeToggle" class="btn btn-outline-light btn-sm" type="button" aria-label="Toggle theme">🌙</button>
         </div>
       </div>
     </nav>
     <main class="container py-3">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="mb-3">
+            {% for category, message in messages %}
+              {% set cls = 'alert-info' %}
+              {% if category == 'success' %}{% set cls = 'alert-success' %}{% endif %}
+              {% if category == 'warning' %}{% set cls = 'alert-warning' %}{% endif %}
+              {% if category == 'danger' or category == 'error' %}{% set cls = 'alert-danger' %}{% endif %}
+              <div class="alert {{ cls }} py-2 mb-2" role="alert">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
       {% block content %}{% endblock %}
     </main>
+    <footer class="container py-4 text-center text-muted" style="font-size: 0.9rem;">
+      <span>
+        <a href="https://github.com/stonecharioteer/koreader-highlights-collector" target="_blank" class="link-secondary">GitHub</a>
+        •
+        <a href="https://stonecharioteer.com" target="_blank" class="link-secondary">stonecharioteer.com</a>
+      </span>
+  </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      (function(){
+        const key = 'theme';
+        const root = document.documentElement;
+        function apply(mode){ root.setAttribute('data-theme', mode); }
+        const saved = localStorage.getItem(key) || 'light';
+        apply(saved);
+        const btn = document.getElementById('themeToggle');
+        if(btn){
+          function updateIcon(){ btn.textContent = (root.getAttribute('data-theme') === 'dark') ? '☀️' : '🌙'; }
+          updateIcon();
+          btn.addEventListener('click', function(){
+            const next = (root.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
+            apply(next);
+            localStorage.setItem(key, next);
+            updateIcon();
+          });
+        }
+      })();
+    </script>
   </body>
   </html>

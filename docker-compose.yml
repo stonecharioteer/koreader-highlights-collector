@@ -19,10 +19,13 @@ services:
 
   web:
     build: .
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql+psycopg2://highlights:highlights@db:5432/highlights
+      DATABASE_URL: postgresql+psycopg://highlights:highlights@db:5432/highlights
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672//
       HIGHLIGHTS_BASE_PATH: /data/highlights
+      RUSTFS_URL: http://rustfs:8080
       FLASK_ENV: development
     volumes:
       - ./:/app
@@ -36,10 +39,13 @@ services:
   worker:
     build: .
     command: ["celery", "-A", "tasks.celery", "worker", "-l", "info"]
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql+psycopg2://highlights:highlights@db:5432/highlights
+      DATABASE_URL: postgresql+psycopg://highlights:highlights@db:5432/highlights
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672//
       HIGHLIGHTS_BASE_PATH: /data/highlights
+      RUSTFS_URL: http://rustfs:8080
     volumes:
       - ./:/app
       - ./sample-highlights:/data/highlights:ro
@@ -47,5 +53,13 @@ services:
       - db
       - rabbitmq
 
+  rustfs:
+    image: rustfs/rustfs:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - rustfs_data:/data
+
 volumes:
   db_data:
+  rustfs_data:

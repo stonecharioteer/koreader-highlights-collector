@@ -1,7 +1,7 @@
 {% extends 'layout.html' %}
-{% block title %}Books{% endblock %}
+{% block title_suffix %} — Books{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-2">
   <h1 class="h3 m-0">Books</h1>
   <form class="d-flex" method="get">
     <input class="form-control form-control-sm me-2" type="search" placeholder="Search" name="q" value="{{ q }}">
@@ -10,12 +10,21 @@
   
 </div>
 
+<div class="mb-3 text-muted">
+  <small>
+    {{ total_books }} book{{ '' if total_books == 1 else 's' }},
+    {{ total_highlights }} highlight{{ '' if total_highlights == 1 else 's' }}
+  </small>
+  </div>
+
 <table class="table table-sm align-middle">
   <thead>
     <tr>
+      <th style="width:64px">Cover</th>
       <th>Title</th>
       <th>Authors</th>
-      <th>Goodreads</th>
+      <th class="text-center" style="width:100px">Highlights</th>
+      <th>Open Library</th>
       <th></th>
     </tr>
   </thead>
@@ -23,9 +32,15 @@
   {% for b in books %}
     <tr>
       <td>
+        {% if b.image_url %}
+          <img src="{{ url_for('books.cover_image', book_id=b.id) }}" alt="cover" style="height:48px; width:auto; border-radius:4px;">
+        {% endif %}
+      </td>
+      <td>
         <a href="{{ url_for('books.book_detail', book_id=b.id) }}">{{ b.clean_title or b.raw_title or '(untitled)' }}</a>
       </td>
       <td>{{ b.clean_authors or b.raw_authors }}</td>
+      <td class="text-center"><span class="badge type-badge">{{ counts.get(b.id, 0) }}</span></td>
       <td>{% if b.goodreads_url %}<a href="{{ b.goodreads_url }}" target="_blank">Link</a>{% endif %}</td>
       <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('books.book_edit', book_id=b.id) }}">Edit</a></td>
     </tr>
@@ -33,4 +48,3 @@
   </tbody>
 </table>
 {% endblock %}
-
