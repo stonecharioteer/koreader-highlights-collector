@@ -3,8 +3,40 @@
 {% block content %}
 <div class="text-center py-4">
   <img src="{{ url_for('assets_banner') }}" alt="Banner" class="img-fluid mb-4" style="max-height: 320px; width: auto; border-radius: 8px;" onerror="this.style.display='none'">
-  <h1 class="display-6">Welcome</h1>
-  <p class="lead">Manage and merge your KOReader highlights across devices.</p>
+  <h1 class="display-6">KOReader Highlights Collector</h1>
+  <p class="lead">Browse, search, and enrich your KOReader highlights from all your devices.</p>
+
+  <div class="row justify-content-center mt-4 mb-4">
+    <div class="col-md-8">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">📚 Collect</h5>
+              <p class="card-text small">Automatically scan KOReader metadata files from multiple devices and aggregate all your highlights in one place.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">✨ Enrich</h5>
+              <p class="card-text small">Enhance book metadata with Open Library integration. Add covers, clean up titles, and organize your library.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">🔍 Browse</h5>
+              <p class="card-text small">Search through all your highlights, filter by device, and export beautiful quote cards to share.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="d-flex justify-content-center gap-2 mt-3">
     <a href="{{ url_for('books.index') }}" class="btn btn-primary">Browse Books</a>
     <a href="{{ url_for('config.index') }}" class="btn btn-outline-secondary">Configure Sources</a>

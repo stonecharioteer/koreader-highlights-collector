@@ -32,7 +32,7 @@
   {% for b in books %}
     <tr>
       <td>
-        {% if b.image_url %}
+        {% if b.image_data %}
           <img src="{{ url_for('books.cover_image', book_id=b.id) }}" alt="cover" style="height:48px; width:auto; border-radius:4px;">
         {% endif %}
       </td>

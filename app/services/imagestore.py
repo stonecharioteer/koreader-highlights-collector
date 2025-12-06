@@ -1,79 +1,29 @@
-from typing import Optional
+from typing import Optional, Tuple
 import requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-def store_image_from_url(remote_url: str, rustfs_base: Optional[str]) -> Optional[str]:
-    """Attempt to store remote_url into RustFS and return a local URL.
+def fetch_image_from_url(remote_url: str) -> Optional[Tuple[bytes, str]]:
+    """Download image from remote URL and return (image_data, content_type).
 
-    Tries common patterns; falls back to returning None on failure so callers can keep original.
+    Returns tuple of (bytes, content_type) on success, None on failure.
     """
-    if not remote_url or not rustfs_base:
+    if not remote_url:
+        logger.warning('fetch_image_from_url: missing remote_url')
         return None
 
-    base = rustfs_base.rstrip('/')
-    session = requests.Session()
-    # Allowed timeouts to avoid blocking UI
-    timeout = 10
-
-    # 1) Try a generic fetch endpoint: /fetch?url=
     try:
-        r = session.post(f"{base}/fetch", params={"url": remote_url}, timeout=timeout)
-        if r.ok:
-            data = r.json() if r.headers.get('content-type', '').startswith('application/json') else None
-            # Expect either {"url": "..."} or Location header
-            if data and data.get('url'):
-                return data['url']
-            if r.headers.get('Location'):
-                return r.headers['Location']
-    except Exception:
-        pass
-
-    # 2) Try upload-by-url: /upload-url
-    try:
-        r = session.post(f"{base}/upload-url", json={"url": remote_url}, timeout=timeout)
-        if r.ok:
-            data = r.json() if r.headers.get('content-type', '').startswith('application/json') else None
-            if data and data.get('url'):
-                return data['url']
-            if r.headers.get('Location'):
-                return r.headers['Location']
-    except Exception:
-        pass
-
-    # 3) Last resort: download then upload as multipart if service supports /upload
-    try:
-        get = session.get(remote_url, timeout=timeout)
-        if get.ok:
-            files = {"file": ("cover.jpg", get.content, get.headers.get('content-type') or 'image/jpeg')}
-            up = session.post(f"{base}/upload", files=files, timeout=timeout)
-            if up.ok:
-                data = up.json() if up.headers.get('content-type', '').startswith('application/json') else None
-                if data and data.get('url'):
-                    return data['url']
-                if up.headers.get('Location'):
-                    return up.headers['Location']
-    except Exception:
-        pass
-
-    return None
-
-
-def store_image_from_bytes(content: bytes, content_type: Optional[str], rustfs_base: Optional[str], filename: str = "cover.jpg") -> Optional[str]:
-    """Upload raw bytes to RustFS and return a local URL, or None on failure."""
-    if not content or not rustfs_base:
+        logger.debug(f'Fetching image from {remote_url}')
+        response = requests.get(remote_url, timeout=10)
+        if response.ok:
+            content_type = response.headers.get('content-type', 'image/jpeg')
+            logger.info(f'Successfully fetched image from {remote_url} ({len(response.content)} bytes, {content_type})')
+            return (response.content, content_type)
+        else:
+            logger.warning(f'Failed to fetch image from {remote_url}: HTTP {response.status_code}')
+            return None
+    except Exception as e:
+        logger.error(f'Error fetching image from {remote_url}: {e}')
         return None
-    base = rustfs_base.rstrip('/')
-    session = requests.Session()
-    timeout = 10
-    try:
-        files = {"file": (filename, content, content_type or 'image/jpeg')}
-        up = session.post(f"{base}/upload", files=files, timeout=timeout)
-        if up.ok:
-            data = up.json() if up.headers.get('content-type', '').startswith('application/json') else None
-            if data and data.get('url'):
-                return data['url']
-            if up.headers.get('Location'):
-                return up.headers['Location']
-    except Exception:
-        return None
-    return None

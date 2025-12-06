@@ -81,12 +81,6 @@ def index():
             db.session.commit()
             return redirect(url_for('config.index'))
 
-        if 'rustfs_url' in request.form:
-            cfg.rustfs_url = (request.form.get('rustfs_url') or '').strip() or None
-            db.session.add(cfg)
-            db.session.commit()
-            return redirect(url_for('config.index'))
-
     paths = SourcePath.query.order_by(SourcePath.enabled.desc(), SourcePath.path.asc()).all()
     return render_template('config/index.html', paths=paths, cfg=cfg)
 

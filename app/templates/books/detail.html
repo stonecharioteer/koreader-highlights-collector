@@ -3,7 +3,7 @@
 {% block content %}
 <div class="row g-3 align-items-start mb-3">
   <div class="col-md-3">
-    {% if book.image_url %}
+    {% if book.image_data %}
       <img src="{{ url_for('books.cover_image', book_id=book.id) }}" alt="cover" class="img-fluid rounded">
     {% endif %}
   </div>
@@ -54,7 +54,8 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Image URL</label>
-                  <input name="image_url" class="form-control form-control-sm" value="{{ book.image_url or '' }}">
+                  <input name="image_url" class="form-control form-control-sm" value="{{ book.image_url or '' }}" readonly>
+                  <small class="form-text text-muted">Use "Fetch Cover by URL" below to update this from external URLs</small>
                 </div>
               </div>
               <div class="mt-2">

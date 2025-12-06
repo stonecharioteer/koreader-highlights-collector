@@ -21,7 +21,9 @@ class Book(db.Model, TimestampMixin):
     clean_title = db.Column(db.String)
     clean_authors = db.Column(db.String)
     goodreads_url = db.Column(db.String)
-    image_url = db.Column(db.String)
+    image_url = db.Column(db.String)  # Deprecated: use image_data instead
+    image_data = db.Column(db.LargeBinary, nullable=True)  # Store image as blob
+    image_content_type = db.Column(db.String(100), nullable=True)  # e.g., 'image/jpeg'
 
     highlights = db.relationship('Highlight', backref='book', cascade="all, delete-orphan")
     notes = db.relationship('Note', backref='book', cascade="all, delete-orphan")

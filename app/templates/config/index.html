@@ -62,18 +62,12 @@
   </div>
 </form>
 
-<h2 class="h5">Image Store</h2>
-<form method="post" class="row g-2 mb-3">
-  <div class="col-sm-9">
-    <input name="rustfs_url" class="form-control" placeholder="http://rustfs:8080" value="{{ cfg.rustfs_url or '' }}">
-  </div>
-  <div class="col-sm-3 d-grid">
-    <button class="btn btn-primary">Save Image Store</button>
-  </div>
-</form>
+<h2 class="h5">Image Management</h2>
 <div class="mb-4">
-  <a href="{{ url_for('tasks.trigger_backfill_images') }}" class="btn btn-outline-secondary btn-sm">Backfill Covers to RustFS</a>
-  <small class="text-muted ms-2">Converts existing external cover URLs to local storage.</small>
+  <form method="post" action="{{ url_for('books.migrate_images_to_database') }}" class="d-inline" onsubmit="return confirm('This will migrate all external image URLs to database blobs. Continue?')">
+    <button type="submit" class="btn btn-outline-secondary btn-sm">Migrate Images to Database</button>
+  </form>
+  <small class="text-muted ms-2">Converts existing external cover URLs to database-stored blobs.</small>
 </div>
 
 <script>

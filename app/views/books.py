@@ -2,11 +2,27 @@ from flask import Blueprint, render_template, request, redirect, url_for, curren
 from .. import db
 from ..models import Book, Highlight, MergedHighlight, MergedHighlightItem, AppConfig, HighlightDevice
 from ..services.openlibrary import fetch_from_url as fetch_ol, search as ol_search
-from ..services.imagestore import store_image_from_url, store_image_from_bytes
+from ..services.imagestore import fetch_image_from_url
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 
 bp = Blueprint('books', __name__)
+
+
+def save_image_to_book(book: Book, image_data: bytes, content_type: str) -> bool:
+    """Save image data to book model in database.
+
+    Returns True on success, False on failure.
+    """
+    try:
+        book.image_data = image_data
+        book.image_content_type = content_type
+        # Keep image_url as None or empty to indicate using database blob
+        book.image_url = None
+        return True
+    except Exception as e:
+        current_app.logger.error(f'Failed to save image data for book {book.id}: {e}')
+        return False
 
 
 @bp.route('/books')
@@ -127,9 +143,12 @@ def book_edit(book_id: int):
                 if meta.get('authors'):
                     new_clean_authors = meta['authors']
                 if meta.get('image'):
-                    # Store image to RustFS if configured
-                    stored = store_image_from_url(meta['image'], rustfs_base=(cfg.rustfs_url if cfg else None))
-                    new_image_url = stored or meta['image']
+                    # Fetch and store image in database
+                    result = fetch_image_from_url(meta['image'])
+                    if result:
+                        image_data, content_type = result
+                        save_image_to_book(book, image_data, content_type)
+                        new_image_url = None  # Use database blob
                 # persist normalized openlibrary URL if provided
                 if meta.get('url'):
                     new_goodreads_url = meta['url']
@@ -193,6 +212,7 @@ def book_ol_apply(book_id: int):
     cfg = AppConfig.query.first()
     app_name = cfg.ol_app_name if cfg else None
     email = cfg.ol_contact_email if cfg else None
+
     try:
         meta = fetch_ol(url, app_name=app_name, email=email)
         if meta.get('title'):
@@ -200,14 +220,22 @@ def book_ol_apply(book_id: int):
         if meta.get('authors'):
             book.clean_authors = meta['authors']
         if meta.get('image'):
-            stored = store_image_from_url(meta['image'], rustfs_base=(cfg.rustfs_url if cfg else None))
-            book.image_url = stored or meta['image']
+            # Fetch and store image in database
+            result = fetch_image_from_url(meta['image'])
+            if result:
+                image_data, content_type = result
+                if save_image_to_book(book, image_data, content_type):
+                    flash('Cover image saved to database.', 'success')
+                else:
+                    flash('Failed to save image to database.', 'warning')
+            else:
+                flash('Failed to fetch image from URL.', 'warning')
         if meta.get('url'):
             book.goodreads_url = meta['url']
         db.session.add(book)
         db.session.commit()
-    except Exception:
-        flash('Failed to apply Open Library metadata.', 'danger')
+    except Exception as e:
+        flash(f'Failed to apply Open Library metadata: {str(e)}', 'danger')
     return redirect(url_for('books.book_detail', book_id=book.id))
 
 
@@ -219,6 +247,7 @@ def book_refresh(book_id: int):
     cfg = AppConfig.query.first()
     app_name = cfg.ol_app_name if cfg else None
     email = cfg.ol_contact_email if cfg else None
+
     try:
         meta = fetch_ol(book.goodreads_url, app_name=app_name, email=email)
         if meta.get('title'):
@@ -226,12 +255,15 @@ def book_refresh(book_id: int):
         if meta.get('authors'):
             book.clean_authors = meta['authors']
         if meta.get('image'):
-            stored = store_image_from_url(meta['image'], rustfs_base=(cfg.rustfs_url if cfg else None))
-            book.image_url = stored or meta['image']
+            # Fetch and store image in database
+            result = fetch_image_from_url(meta['image'])
+            if result:
+                image_data, content_type = result
+                save_image_to_book(book, image_data, content_type)
         db.session.add(book)
         db.session.commit()
-    except Exception:
-        flash('Failed to refresh Open Library metadata.', 'danger')
+    except Exception as e:
+        flash(f'Failed to refresh Open Library metadata: {str(e)}', 'danger')
     return redirect(url_for('books.book_detail', book_id=book.id))
 
 
@@ -240,7 +272,21 @@ def book_update_inline(book_id: int):
     book = Book.query.get_or_404(book_id)
     book.clean_title = (request.form.get('clean_title') or '').strip() or None
     book.clean_authors = (request.form.get('clean_authors') or '').strip() or None
-    book.image_url = (request.form.get('image_url') or '').strip() or None
+
+    # Image URL field is now read-only in the UI; users should use "Fetch Cover by URL" button
+    # If they somehow submit a URL, fetch and store it in database
+    new_image_url = (request.form.get('image_url') or '').strip() or None
+    if new_image_url and (new_image_url.startswith('http://') or new_image_url.startswith('https://')):
+        result = fetch_image_from_url(new_image_url)
+        if result:
+            image_data, content_type = result
+            if save_image_to_book(book, image_data, content_type):
+                flash('Image fetched and saved to database.', 'success')
+            else:
+                flash('Failed to save image. Use the "Fetch Cover by URL" button instead.', 'warning')
+        else:
+            flash('Failed to fetch image from URL. Use the "Fetch Cover by URL" button instead.', 'warning')
+
     db.session.add(book)
     db.session.commit()
     flash('Saved edits.', 'success')
@@ -249,47 +295,17 @@ def book_update_inline(book_id: int):
 
 @bp.get('/books/<int:book_id>/cover')
 def cover_image(book_id: int):
-    """Serve or redirect to a book's cover image.
-    If RustFS is configured and the current image_url is external, attempt to store
-    it in RustFS, update the DB, and redirect to the stored URL.
+    """Serve book cover from database blob.
+    Images are stored as binary data in the database for simplicity.
     """
     book = Book.query.get_or_404(book_id)
-    if not book.image_url:
-        # No image; return 404 to let browser hide image
+    if not book.image_data:
+        # No image; return 404
         return ('', 404)
-    cfg = AppConfig.query.first()
-    rustfs = cfg.rustfs_url if cfg else None
-    # If ?raw=1, proxy the image bytes to ensure same-origin for capture
-    if request.args.get('raw') == '1':
-        try:
-            import requests as _rq
-            r = _rq.get(book.image_url, timeout=10)
-            if r.ok:
-                ct = r.headers.get('Content-Type', 'image/jpeg')
-                try:
-                    current_app.logger.info('cover raw fetch ok: %s bytes from %s', len(r.content), book.image_url)
-                except Exception:
-                    pass
-                return Response(r.content, mimetype=ct)
-            else:
-                current_app.logger.warning('cover raw fetch failed: %s %s', r.status_code, book.image_url)
-        except Exception as e:
-            current_app.logger.warning('cover raw fetch exception: %s for %s', e, book.image_url)
-        # Return a transparent 1x1 PNG as a safe fallback to avoid 404 navigation
-        import base64
-        png_1x1 = base64.b64decode(
-            b'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAuMBgB2c7i0AAAAASUVORK5CYII='
-        )
-        return Response(png_1x1, mimetype='image/png')
 
-    if rustfs and not book.image_url.startswith(rustfs.rstrip('/')):
-        stored = store_image_from_url(book.image_url, rustfs_base=rustfs)
-        if stored:
-            book.image_url = stored
-            db.session.add(book)
-            db.session.commit()
-            return redirect(book.image_url)
-    return redirect(book.image_url)
+    # Serve the image data directly from database
+    content_type = book.image_content_type or 'image/jpeg'
+    return Response(book.image_data, mimetype=content_type)
 
 
 def _load_font(size: int) -> ImageFont.FreeTypeFont:
@@ -429,13 +445,10 @@ def book_image_upload(book_id: int):
         return redirect(url_for('books.book_detail', book_id=book.id))
     content = f.read()
     content_type = f.mimetype or 'image/jpeg'
-    cfg = AppConfig.query.first()
-    stored = store_image_from_bytes(content, content_type, rustfs_base=(cfg.rustfs_url if cfg else None), filename=f.filename)
-    if stored:
-        book.image_url = stored
+    if save_image_to_book(book, content, content_type):
         db.session.add(book)
         db.session.commit()
-        flash('Cover image uploaded.', 'success')
+        flash('Cover image uploaded and saved to database.', 'success')
     else:
         flash('Failed to upload cover image.', 'danger')
     return redirect(url_for('books.book_detail', book_id=book.id))
@@ -447,13 +460,66 @@ def book_image_fetch(book_id: int):
     remote = (request.form.get('image_fetch_url') or '').strip()
     if not remote:
         return redirect(url_for('books.book_detail', book_id=book.id))
-    cfg = AppConfig.query.first()
-    stored = store_image_from_url(remote, rustfs_base=(cfg.rustfs_url if cfg else None))
-    if stored or remote:
-        book.image_url = stored or remote
-        db.session.add(book)
-        db.session.commit()
-        flash('Cover image updated from URL.', 'success')
+
+    result = fetch_image_from_url(remote)
+    if result:
+        image_data, content_type = result
+        if save_image_to_book(book, image_data, content_type):
+            db.session.add(book)
+            db.session.commit()
+            flash('Cover image fetched and saved to database.', 'success')
+        else:
+            flash('Failed to save image to database.', 'danger')
     else:
         flash('Failed to fetch image from URL.', 'danger')
     return redirect(url_for('books.book_detail', book_id=book.id))
+
+
+@bp.post('/admin/migrate-images-to-database')
+def migrate_images_to_database():
+    """Migrate all external image URLs to database blobs.
+    This is an admin utility to convert legacy external URLs to database-stored images.
+    """
+    # Find all books with image_url but no image_data
+    books_to_migrate = Book.query.filter(
+        Book.image_url.isnot(None),
+        Book.image_data.is_(None)
+    ).all()
+
+    if not books_to_migrate:
+        flash('No external image URLs to migrate. All images already in database!', 'info')
+        return redirect(url_for('books.index'))
+
+    migrated = 0
+    failed = 0
+
+    for book in books_to_migrate:
+        if not book.image_url:
+            continue
+
+        try:
+            result = fetch_image_from_url(book.image_url)
+            if result:
+                image_data, content_type = result
+                if save_image_to_book(book, image_data, content_type):
+                    db.session.add(book)
+                    migrated += 1
+                else:
+                    failed += 1
+                    current_app.logger.warning(f'Failed to save image for book {book.id}')
+            else:
+                failed += 1
+                current_app.logger.warning(f'Failed to fetch image for book {book.id}: {book.image_url}')
+        except Exception as e:
+            failed += 1
+            current_app.logger.error(f'Error migrating image for book {book.id}: {e}')
+
+    # Commit all changes at once
+    db.session.commit()
+
+    if migrated > 0:
+        flash(f'Successfully migrated {migrated} image(s) to database. {failed} failed.', 'success' if failed == 0 else 'warning')
+    else:
+        flash(f'Migration failed. Could not fetch any images.', 'danger')
+
+    return redirect(url_for('books.index'))
