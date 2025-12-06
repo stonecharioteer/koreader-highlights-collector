@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: highlights
+      POSTGRES_PASSWORD: highlights
+      POSTGRES_DB: highlights
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  web:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://highlights:highlights@db:5432/highlights
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672//
+      HIGHLIGHTS_BASE_PATH: /data/highlights
+      FLASK_ENV: development
+    volumes:
+      - ./:/app
+      - ./sample-highlights:/data/highlights:ro
+    depends_on:
+      - db
+      - rabbitmq
+    ports:
+      - "48138:48138"
+
+  worker:
+    build: .
+    command: ["celery", "-A", "tasks.celery", "worker", "-l", "info"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://highlights:highlights@db:5432/highlights
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672//
+      HIGHLIGHTS_BASE_PATH: /data/highlights
+    volumes:
+      - ./:/app
+      - ./sample-highlights:/data/highlights:ro
+    depends_on:
+      - db
+      - rabbitmq
+
+volumes:
+  db_data:

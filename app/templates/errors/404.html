@@ -1,0 +1,13 @@
+{% extends 'layout.html' %}
+{% block title_suffix %} — Not Found{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+  <h1 class="display-6 mb-3">Page not found</h1>
+  <p class="lead">We couldn't find what you were looking for.</p>
+  <div class="mt-4">
+    <a href="{{ url_for('books.index') }}" class="btn btn-primary">Back to Books</a>
+  </div>
+  <hr class="my-4">
+  <small class="text-muted">HTTP 404 • Not Found</small>
+</div>
+{% endblock %}

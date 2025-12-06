@@ -1,0 +1,16 @@
+{% extends 'layout.html' %}
+{% block title_suffix %} — Error{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+  <h1 class="display-6 mb-3">We hit a snag</h1>
+  <p class="lead">An unexpected error occurred while processing your request.</p>
+  <p class="text-muted">If this keeps happening, try rescanning later or check your configuration.</p>
+  <div class="mt-4">
+    <a href="{{ url_for('books.index') }}" class="btn btn-primary">Back to Books</a>
+    <a href="{{ url_for('config.index') }}" class="btn btn-outline-secondary ms-2">Open Config</a>
+  </div>
+  <hr class="my-4">
+  <small class="text-muted">HTTP 500 • Internal Server Error</small>
+  
+</div>
+{% endblock %}
