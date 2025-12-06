@@ -1,0 +1,88 @@
+{% extends 'layout.html' %}
+{% block title %}Config{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 m-0">Config: Source Folders</h1>
+  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('tasks.trigger_scan') }}">Scan All</a>
+</div>
+
+<form method="post" class="row g-2 mb-3" id="add-path-form">
+  <div class="col-md-7">
+    <input name="path" id="path-input" class="form-control" placeholder="/data/highlights/boox-palma" list="path-suggestions" autocomplete="off" required>
+    <datalist id="path-suggestions"></datalist>
+  </div>
+  <div class="col-md-3">
+    <input name="device_label" class="form-control" placeholder="Device label (e.g., boox-palma)">
+  </div>
+  <div class="col-md-2 d-grid">
+    <button class="btn btn-primary">Add Folder</button>
+  </div>
+</form>
+
+<table class="table table-sm align-middle">
+  <thead>
+    <tr><th>Path</th><th>Device Label</th><th>Enabled</th><th></th></tr>
+  </thead>
+  <tbody>
+  {% for p in paths %}
+    <tr>
+      <td><code>{{ p.path }}</code></td>
+      <td>
+        <form method="post" action="{{ url_for('config.update_label', pid=p.id) }}" class="d-flex gap-2">
+          <input name="device_label" class="form-control form-control-sm" value="{{ p.device_label or '' }}" placeholder="Label">
+          <button class="btn btn-sm btn-outline-primary">Save</button>
+        </form>
+      </td>
+      <td>{{ 'Yes' if p.enabled else 'No' }}</td>
+      <td class="text-end">
+        <form method="post" action="{{ url_for('config.toggle', pid=p.id) }}" class="d-inline">
+          <button class="btn btn-sm btn-outline-secondary">{{ 'Disable' if p.enabled else 'Enable' }}</button>
+        </form>
+        <form method="post" action="{{ url_for('config.delete', pid=p.id) }}" class="d-inline ms-1" onsubmit="return confirm('Delete?')">
+          <button class="btn btn-sm btn-outline-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+ </tbody>
+</table>
+
+<hr class="my-4">
+
+<h2 class="h5">Open Library</h2>
+<form method="post" class="row g-2 mb-3">
+  <div class="col-sm-4">
+    <input name="ol_app_name" class="form-control" placeholder="App Name" value="{{ cfg.ol_app_name or '' }}">
+  </div>
+  <div class="col-sm-5">
+    <input name="ol_contact_email" class="form-control" placeholder="Contact Email" value="{{ cfg.ol_contact_email or '' }}">
+  </div>
+  <div class="col-sm-3 d-grid">
+    <button class="btn btn-primary">Save Open Library Config</button>
+  </div>
+</form>
+
+<script>
+  (function(){
+    const input = document.getElementById('path-input');
+    const list = document.getElementById('path-suggestions');
+    let timer;
+    function updateSuggestions() {
+      const q = input.value || '';
+      fetch(`/config/suggest?prefix=${encodeURIComponent(q)}`)
+        .then(r => r.ok ? r.json() : {paths: []})
+        .then(data => {
+          const opts = (data.paths || []).map(p => `<option value="${p}"></option>`).join('');
+          list.innerHTML = opts;
+        })
+        .catch(() => { list.innerHTML = ''; });
+    }
+    input.addEventListener('input', function(){
+      clearTimeout(timer);
+      timer = setTimeout(updateSuggestions, 150);
+    });
+    // Initial suggestions for convenience
+    updateSuggestions();
+  })();
+  </script>
+{% endblock %}

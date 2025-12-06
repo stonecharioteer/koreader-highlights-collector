@@ -1,0 +1,132 @@
+{% extends 'layout.html' %}
+{% block title %}Book{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h4 m-0">{{ book.clean_title or book.raw_title or '(untitled)' }}</h1>
+    <div class="text-muted">{{ book.clean_authors or book.raw_authors }}</div>
+  </div>
+  <div>
+    <form method="post" action="{{ url_for('books.book_refresh', book_id=book.id) }}" class="d-inline">
+      <button class="btn btn-sm btn-outline-secondary" {% if not book.goodreads_url %}disabled{% endif %}>Refresh from Open Library</button>
+    </form>
+  </div>
+  
+</div>
+
+{% if book.image_url %}
+  <img src="{{ book.image_url }}" alt="cover" style="max-height: 200px" class="mb-3 d-block">
+{% endif %}
+{% if book.goodreads_url %}
+  <p><a href="{{ book.goodreads_url }}" target="_blank">Open Library</a></p>
+{% endif %}
+
+<h2 class="h5 mt-3">Metadata</h2>
+<form method="post" action="{{ url_for('books.book_update_inline', book_id=book.id) }}" class="mb-3">
+  <div class="row g-2">
+    <div class="col-md-4">
+      <label class="form-label">Title</label>
+      <input name="clean_title" class="form-control form-control-sm" value="{{ book.clean_title or book.raw_title }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Authors</label>
+      <input name="clean_authors" class="form-control form-control-sm" value="{{ book.clean_authors or book.raw_authors }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Image URL</label>
+      <input name="image_url" class="form-control form-control-sm" value="{{ book.image_url or '' }}">
+    </div>
+  </div>
+  <div class="mt-2">
+    <button class="btn btn-primary btn-sm">Save</button>
+  </div>
+ </form>
+
+<h2 class="h5 mt-3">Open Library Search</h2>
+<form method="post" action="{{ url_for('books.book_ol_search', book_id=book.id) }}" class="mb-3">
+  <div class="row g-2">
+    <div class="col-md-9">
+      <input name="q" class="form-control form-control-sm" placeholder="Search title or 'Title by Author'" value="{{ q or book.clean_title or book.raw_title }}">
+    </div>
+    <div class="col-md-3 d-grid">
+      <button class="btn btn-outline-primary btn-sm">Search</button>
+    </div>
+  </div>
+</form>
+
+{% if ol_results is not none %}
+  {% if ol_results %}
+    <div class="row row-cols-1 row-cols-md-2 g-3">
+      {% for r in ol_results %}
+        <div class="col">
+          <div class="card h-100">
+            {% if r.image %}<img src="{{ r.image }}" class="card-img-top" alt="cover">{% endif %}
+            <div class="card-body">
+              <h5 class="card-title">{{ r.title }}</h5>
+              <p class="card-text text-muted">{{ r.authors }}</p>
+              <form method="post" action="{{ url_for('books.book_ol_apply', book_id=book.id) }}">
+                <input type="hidden" name="url" value="{{ r.url }}">
+                <button class="btn btn-sm btn-success">Select</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-muted">No results.</div>
+  {% endif %}
+{% endif %}
+
+<h2 class="h5 mt-4">Highlights</h2>
+<form method="post" action="{{ url_for('books.book_merge', book_id=book.id) }}">
+  <div class="list-group">
+    {% for h in highlights %}
+      <label class="list-group-item">
+        <div class="d-flex align-items-start">
+          <input type="checkbox" class="form-check-input quote-select" name="highlight_id" value="{{ h.id }}">
+          <div class="flex-grow-1">
+            <div class="quote-card">
+              <p class="quote-text">{{ h.text }}</p>
+              <div class="quote-meta">
+                <span>Page {{ h.page_number }}</span>
+                {% if h.chapter %} • <span>{{ h.chapter }}</span>{% endif %}
+                {% if h.datetime %} • <span>{{ h.datetime }}</span>{% endif %}
+                <span class="ms-2">
+                  {% set t = h.kind or 'highlight' %}
+                  <span class="badge type-badge rounded-pill me-1">
+                    {% if t == 'highlight_empty' %}Empty{% elif t == 'highlight_no_position' %}No Pos{% elif t == 'bookmark' %}Bookmark{% else %}Highlight{% endif %}
+                  </span>
+                </span>
+                <span class="quote-devices ms-1">
+                  {% if h.devices %}
+                    {% for d in h.devices %}
+                      <span class="badge device-badge rounded-pill me-1">{{ d.device_id }}</span>
+                    {% endfor %}
+                  {% else %}
+                    {% if h.device_id %}
+                      <span class="badge device-badge rounded-pill me-1">{{ h.device_id }}</span>
+                    {% endif %}
+                  {% endif %}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </label>
+    {% endfor %}
+    {% if not highlights %}
+      <div class="text-muted">No highlights yet.</div>
+    {% endif %}
+  </div>
+  <div class="mb-3 mt-3">
+    <label class="form-label">Merged Text</label>
+    <textarea class="form-control" name="merged_text" rows="4"></textarea>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Notes (optional)</label>
+    <textarea class="form-control" name="merged_notes" rows="2"></textarea>
+  </div>
+  <button class="btn btn-primary">Create Merged Highlight</button>
+</form>
+{% endblock %}

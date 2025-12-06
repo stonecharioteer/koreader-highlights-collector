@@ -1,0 +1,36 @@
+{% extends 'layout.html' %}
+{% block title %}Books{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 m-0">Books</h1>
+  <form class="d-flex" method="get">
+    <input class="form-control form-control-sm me-2" type="search" placeholder="Search" name="q" value="{{ q }}">
+    <button class="btn btn-sm btn-primary" type="submit">Search</button>
+  </form>
+  
+</div>
+
+<table class="table table-sm align-middle">
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Authors</th>
+      <th>Goodreads</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for b in books %}
+    <tr>
+      <td>
+        <a href="{{ url_for('books.book_detail', book_id=b.id) }}">{{ b.clean_title or b.raw_title or '(untitled)' }}</a>
+      </td>
+      <td>{{ b.clean_authors or b.raw_authors }}</td>
+      <td>{% if b.goodreads_url %}<a href="{{ b.goodreads_url }}" target="_blank">Link</a>{% endif %}</td>
+      <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('books.book_edit', book_id=b.id) }}">Edit</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
