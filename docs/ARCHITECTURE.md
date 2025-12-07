@@ -23,8 +23,8 @@ flowchart LR
   DB[(Postgres
   + Image Blobs)]
   MQ[(RabbitMQ)]
-  FS[/Source Folders\n(sample-highlights, devices)/]
-  EXPORTS[/Export Files\n(ZIP archives)/]
+  FS[/Source Folders<br/>sample-highlights devices/]
+  EXPORTS[/Export Files<br/>ZIP archives/]
   OL[(Open Library API)]
 
   BROWSER -->|HTTP :48138| WEB
