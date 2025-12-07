@@ -91,7 +91,45 @@ The default compose mounts `./sample-highlights` as an example. Replace this wit
   - Download quotes as PNG images with adaptive layouts
   - Edit metadata inline or search Open Library
   - Upload covers or fetch from URLs (stored in database)
+  - **Select and export** highlights to blog post format (see Export Features below)
 - **Config**: Manage source folders, configure Open Library identity, migrate images to database
+- **Exports**: Create blog posts from selected highlights using customizable templates
+
+## Export Features
+
+Transform your highlights into ready-to-publish blog posts:
+
+### Templates
+- **Jinja2 templating** with full access to book metadata, highlights, and reading dates
+- **Default Hugo template** included (compatible with stonecharioteer.com format)
+- **Template editor** with comprehensive variable documentation
+- Create unlimited custom templates for different blog platforms
+
+### Workflow
+1. Open any book detail page
+2. Click **Select** to enter selection mode
+3. Choose highlights with checkboxes (Select All / Deselect All available)
+4. Click **Export Selected** to queue an async job
+5. Job processes in background (Celery worker)
+6. Download ZIP containing:
+   - Rendered markdown file with frontmatter
+   - Book cover image (if available)
+7. Copy markdown to your blog, adjust "Thoughts" section
+8. Delete export job when done to free space
+
+### Job Management
+- **Export Jobs** page lists all pending/completed/failed exports
+- **Auto-refresh** status while job processes
+- **Delete individual jobs** or use **Delete All** to purge
+- Both database records and ZIP files are cleaned up
+
+### Template Variables
+Available in all templates:
+- **Book**: `clean_title`, `raw_title`, `clean_authors`, `raw_authors`, `description`, `language`, `identifiers`
+- **Highlights**: `text`, `chapter`, `page_number`, `datetime`, `color`, `devices`
+- **Reading**: `read_start`, `read_end` (first/last highlight dates)
+- **Export**: `current_date`, `current_timestamp`
+- **Jinja**: `loop.index`, conditionals, filters, includes
 
 ## Design Philosophy
 

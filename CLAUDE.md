@@ -4,30 +4,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KoReader Highlights Collector - A Python tool that collects and aggregates highlights from KoReader e-reader devices synced via Syncthing.
+KoReader Highlights Collector - A Flask web application that collects, aggregates, and exports highlights from KoReader e-reader devices synced via Syncthing.
 
 ## Architecture
 
-The project consists of a single Python script (`collect_highlights.py`) that:
+The project consists of:
 
-1. **Scans** multiple device folders in `~/syncthing/ebooks-highlights/`
-2. **Parses** KoReader Lua metadata files (`metadata.epub.lua`, `metadata.pdf.lua`)
-3. **Extracts** highlights with metadata (text, chapter, page number, datetime, device ID)
-4. **Aggregates** highlights grouped by book
-5. **Exports** to a single JSON file (`highlights.json`)
+**Legacy CLI** (`collect_highlights.py`) - Original JSON export script (still functional but superseded by web app)
+
+**Flask Web Application** - Primary interface:
+
+1. **Scans** device folders via Celery background tasks
+2. **Parses** KoReader Lua metadata files using `core/parser.py`
+3. **Stores** in PostgreSQL with device tracking and metadata enrichment (Open Library)
+4. **Displays** via Flask UI with search, filtering, sorting, and quote image export
+5. **Exports** selected highlights to customizable blog post formats (Jinja2 templates)
 
 ### Key Components
 
+**Core Library** (`core/`)
 - `LuaTableParser`: Custom parser for KoReader's Lua metadata format
   - `parse_file()`: Main entry point for parsing Lua files
   - `_extract_field_value()`: Brace-matching algorithm to extract nested Lua table values
   - `_parse_annotations()`: Extracts individual highlight entries
   - `_parse_doc_props()`: Extracts book metadata (title, author, etc.)
+  - `_unescape_lua_string()`: Handles escape sequences in Lua strings
 
-- `HighlightsCollector`: Main orchestrator
-  - `collect()`: Scans all device folders and processes metadata files
-  - `_process_metadata_file()`: Processes a single metadata file
-  - `export_json()`: Outputs aggregated data to JSON
+**Flask Application** (`app/`)
+- `app/views/books.py`: Book listing, detail, metadata editing, Open Library integration
+- `app/views/exports.py`: Template management, export job creation, download, deletion
+- `app/views/config.py`: Source folder configuration, Open Library identity
+- `app/views/tasks.py`: Trigger background scans
+
+**Background Tasks** (`tasks.py`)
+- `scan_all_paths()`: Scans all configured source folders
+- `import_file(path)`: Parses metadata file and upserts to database
+- `export_highlights(job_id)`: Renders Jinja2 template, creates ZIP with markdown + cover
 
 ### File Structure
 
@@ -50,20 +62,111 @@ Classification logic in `collect_highlights.py:215-229`
 
 ## Usage
 
+**Web Application** (Primary)
+```bash
+docker compose up --build
+# Visit http://localhost:48138
+```
+
+**Legacy CLI** (Still available)
 ```bash
 # Collect highlights (~/syncthing/ebooks-highlights -> highlights.json)
 python3 collect_highlights.py collect
 
 # Publish to Karakeep
 python3 collect_highlights.py publish
-
-# View available commands
-python3 collect_highlights.py --help
 ```
 
-The script uses a subcommand structure. Available commands:
-- `collect`: Collect and aggregate highlights from KoReader devices
-- `publish`: Publish highlights to Karakeep with automatic tagging
+## Export Feature
+
+The web application includes a comprehensive export system for creating blog posts from highlights:
+
+### Workflow
+1. Open any book detail page → Click **Select** button
+2. Check desired highlights (Select All / Deselect All available)
+3. Click **Export Selected** → Job queued in Celery
+4. Navigate to **Exports → Export Jobs** to monitor progress
+5. Page auto-refreshes; download ZIP when completed
+6. Extract ZIP: `export.md` (rendered markdown) + `cover.jpg` (book cover)
+7. Copy markdown to blog, edit "Thoughts" section
+8. Delete job from UI to free disk space
+
+### Export Templates (`app/views/exports.py`, `app/models.py`)
+
+**Database Models**
+- `ExportTemplate`: Stores Jinja2 templates with `name`, `template_content`, `is_default`
+- `ExportJob`: Tracks async jobs with `job_id` (UUID), `book_id`, `template_id`, `highlight_ids` (JSON), `status`, `file_path`
+
+**Template Management**
+- Templates UI: Create/edit/delete custom templates
+- Default Hugo template included (matches stonecharioteer.com format)
+- Help dialog documents all available Jinja2 variables
+- Set one template as default for quick exports
+
+**Available Template Variables**
+- **Book**: `book.clean_title`, `book.raw_title`, `book.clean_authors`, `book.raw_authors`, `book.description`, `book.language`
+- **Highlights**: Loop over `highlights` array with `highlight.text`, `highlight.chapter`, `highlight.page_number`, `highlight.datetime`
+- **Reading Dates**: `read_start`, `read_end` (derived from first/last highlight timestamps)
+- **Export Metadata**: `current_date` (YYYY-MM-DD), `current_timestamp` (YYYY-MM-DD HH:MM:SS)
+- **Jinja Utilities**: `loop.index`, conditionals, filters, `{% if %}`, `{% for %}`
+
+**Celery Task** (`tasks.py:export_highlights`)
+1. Load ExportJob by `job_id`
+2. Fetch Book, ExportTemplate, selected Highlights from database
+3. Calculate `read_start`/`read_end` from highlight datetimes
+4. Render Jinja2 template with context
+5. Create ZIP file:
+   - `export.md`: Rendered markdown content
+   - `cover.jpg` or `cover.png`: Book cover from database blob (if available)
+6. Store ZIP in `EXPORT_DIR` (configurable via env var, default `/tmp/exports`)
+7. Update job status: `pending` → `processing` → `completed` or `failed`
+
+**Job Management**
+- Jobs list page shows all exports with status badges
+- Individual delete button per job (removes DB record + ZIP file)
+- "Delete All" button for bulk cleanup
+- Confirmation dialogs prevent accidental deletion
+
+### Example: Hugo Blog Template
+
+Default template generates Hugo-compatible markdown:
+
+```markdown
+---
+date: '2025-12-07 10:30:00'
+draft: false
+title: 'GN Devy - Mahabharata: The Epic and the Nation'
+tags:
+    - "reading"
+cover:
+  image: "/images/books/mahabharata-the-epic-and-the-nation.jpg"
+ShowToc: true
+---
+
+## Thoughts
+
+[Add your thoughts about the book here]
+
+## Highlights
+
+### 1. The Epic Quest
+
+#### Page 37 @ 20 April 2025 09:29:36 PM
+
+> *It took the scholars at the Bhandarkar Institute...*
+
+### 2. The Wheel
+
+#### Page 109 @ 20 April 2025 10:36:01 PM
+
+> *The widespread misconception...*
+```
+
+Template automatically:
+- Groups highlights by chapter (new heading when chapter changes)
+- Formats timestamps in human-readable format
+- Generates lowercase-hyphenated slugs for image paths
+- Includes Hugo frontmatter with proper YAML formatting
 
 ## Karakeep Integration
 
