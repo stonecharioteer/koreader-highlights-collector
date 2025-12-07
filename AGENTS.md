@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-KoReader Highlights Collector - A Flask web application that collects, aggregates, and exports highlights from KoReader e-reader devices synced via Syncthing.
+**KOllector** - A Flask web application that collects, aggregates, and exports highlights from KOReader e-reader devices synced via Syncthing.
 
 ### Architecture
 

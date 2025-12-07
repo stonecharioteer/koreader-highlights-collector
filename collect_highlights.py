@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-KoReader Highlights Collector
+KOllector CLI
 
+Legacy command-line interface for collecting KoReader highlights.
 Scans syncthing directories for KoReader metadata files and collects all highlights
 into a single JSON file, grouped by book.
 """
@@ -489,7 +490,7 @@ class KarakeepClient:
 
 def cmd_collect(args):
     """Handle the collect subcommand."""
-    print(f"KoReader Highlights Collector")
+    print(f"KOllector CLI")
     print(f"{'='*60}")
     print(f"Base path: {args.base_path}")
     print(f"Output file: {args.output}")
@@ -641,7 +642,7 @@ def cmd_publish(args):
             },
             'device': h['device_id'],
             'color': h.get('color', ''),
-            'source': 'koreader-highlights-collector'
+            'source': 'kollector'
         }
         note = json.dumps(metadata, indent=2)
 
@@ -691,7 +692,7 @@ def main():
     env_vars = load_env_file()
 
     parser = argparse.ArgumentParser(
-        description='KoReader Highlights Collector - Manage and collect KoReader highlights',
+        description='KOllector CLI - Manage and collect KoReader highlights',
         epilog='''
 Examples:
   # Collect highlights from default location

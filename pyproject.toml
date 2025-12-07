@@ -1,7 +1,7 @@
 [project]
-name = "koreader-highlights-app"
+name = "kollector"
 version = "0.1.0"
-description = "Flask app to manage KoReader highlights with Celery ingestion"
+description = "KOllector - Flask app to manage KOReader highlights with Celery ingestion"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

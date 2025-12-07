@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="assets/logo.png" alt="KOReader Highlights Collector" height="72" />
+  <img src="assets/logo.png" alt="KOllector" height="72" />
 </p>
 
-# KOReader Highlights Collector (Web App)
+# KOllector
 
-Browse, search, and enrich your KOReader highlights from all your devices via a local Flask web application. The app scans KOReader metadata files, aggregates highlights with device labels, and lets you enhance book metadata using Open Library.
+Browse, search, and enrich your KOReader highlights from all your devices via a local Flask web application. KOllector scans KOReader metadata files, aggregates highlights with device labels, and lets you enhance book metadata using Open Library.
 
 **Important**: This application does **not** sync highlights back to your devices. It's a read-only collector and viewer. Use [Syncthing](https://syncthing.net/) or similar tools to synchronize your KOReader metadata across devices.
 

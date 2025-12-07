@@ -259,7 +259,13 @@ def book_ol_search(book_id: int):
     if q:
         try:
             results = ol_search(q, app_name=app_name, email=email, limit=8)
-        except Exception:
+        except Exception as e:
+            # Check if it's a connection/timeout error
+            error_msg = str(e).lower()
+            if 'timeout' in error_msg or 'connection' in error_msg or 'failed to establish' in error_msg:
+                flash('Open Library is currently unreachable. The service may be down. Please try again later.', 'warning')
+            else:
+                flash(f'Open Library search failed: {str(e)}', 'danger')
             results = []
     # Quiet search feedback
     highlights = Highlight.query.filter_by(book_id=book.id, kind='highlight').order_by(Highlight.page_number.asc()).all()
@@ -299,7 +305,11 @@ def book_ol_apply(book_id: int):
         db.session.add(book)
         db.session.commit()
     except Exception as e:
-        flash(f'Failed to apply Open Library metadata: {str(e)}', 'danger')
+        error_msg = str(e).lower()
+        if 'timeout' in error_msg or 'connection' in error_msg or 'failed to establish' in error_msg:
+            flash('Open Library is currently unreachable. The service may be down. Please try again later.', 'warning')
+        else:
+            flash(f'Failed to apply Open Library metadata: {str(e)}', 'danger')
     return redirect(url_for('books.book_detail', book_id=book.id))
 
 
@@ -329,7 +339,11 @@ def book_refresh(book_id: int):
         db.session.add(book)
         db.session.commit()
     except Exception as e:
-        flash(f'Failed to refresh Open Library metadata: {str(e)}', 'danger')
+        error_msg = str(e).lower()
+        if 'timeout' in error_msg or 'connection' in error_msg or 'failed to establish' in error_msg:
+            flash('Open Library is currently unreachable. The service may be down. Please try again later.', 'warning')
+        else:
+            flash(f'Failed to refresh Open Library metadata: {str(e)}', 'danger')
     return redirect(url_for('books.book_detail', book_id=book.id))
 
 

@@ -57,7 +57,7 @@ cover: cover.jpg
 
 {% endfor %}
 
-*Exported from KoReader Highlights Collector on {{ current_timestamp }}*
+*Exported from KOllector on {{ current_timestamp }}*
 """
             )
             db.session.add(default_template)
