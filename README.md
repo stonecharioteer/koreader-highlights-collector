@@ -10,6 +10,14 @@ Browse, search, and enrich your KOReader highlights from all your devices via a 
 
 ![Landing](assets/banner.png)
 
+## What It Looks Like
+
+Browse your collected highlights with a clean, intuitive interface:
+
+![Book List](docs/screenshots/book-list-page.png)
+
+See more screenshots in [docs/screenshots.md](docs/screenshots.md).
+
 ## Prerequisites: Syncing Highlights with Syncthing
 
 This application is designed to work with highlights that are already synchronized from your devices. Here's the recommended setup:
