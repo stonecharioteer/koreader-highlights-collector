@@ -18,12 +18,3 @@ def trigger_scan():
     celery.send_task('tasks.scan_all_paths')
     flash('Scan started in background.', 'info')
     return redirect(url_for('books.index'))
-
-
-@bp.route('/tasks/backfill-images')
-def trigger_backfill_images():
-    app = current_app._get_current_object()
-    celery = make_celery(app)
-    celery.send_task('tasks.backfill_images')
-    flash('Backfill of book covers started in background.', 'info')
-    return redirect(url_for('config.index'))

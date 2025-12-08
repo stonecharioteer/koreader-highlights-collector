@@ -16,7 +16,6 @@ def create_app() -> Flask:
     app.config.setdefault("HIGHLIGHTS_BASE_PATH", os.getenv("HIGHLIGHTS_BASE_PATH", str((os.getcwd() + "/sample-highlights"))))
     app.config.setdefault("CELERY_BROKER_URL", os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672//"))
     app.config.setdefault("CELERY_RESULT_BACKEND", os.getenv("CELERY_RESULT_BACKEND", "rpc://"))
-    app.config.setdefault("RUSTFS_URL", os.getenv("RUSTFS_URL"))
     app.config.setdefault("EXPORT_DIR", os.getenv("EXPORT_DIR", "/tmp/exports"))
     # Required for flash messages and sessions. Treat empty as unset.
     _sk = os.getenv("SECRET_KEY")
