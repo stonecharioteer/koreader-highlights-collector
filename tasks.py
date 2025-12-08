@@ -7,10 +7,10 @@ from flask import current_app
 
 from celery_app import make_celery
 from app import create_app, db
-from app.models import Book, Highlight, Bookmark, Note, SourcePath, HighlightDevice, Job
+from app.models import Book, Highlight, Bookmark, Note, SourcePath, HighlightDevice, Job, ExportJob, AppConfig
 from core import LuaTableParser, iter_metadata_files, HighlightKind
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 flask_app = create_app()
@@ -330,3 +330,57 @@ def export_highlights(job_id: str):
         job.status = 'failed'
         job.error_message = str(e)
         db.session.commit()
+
+
+@celery.task(name='tasks.cleanup_old_jobs')
+def cleanup_old_jobs():
+    """Delete old jobs and their associated files based on retention policy.
+
+    Runs daily at midnight to clean up:
+    - Job records older than retention_days
+    - ExportJob records older than retention_days
+    - Associated export zip files
+    """
+    # Get retention policy from config
+    cfg = AppConfig.query.first()
+    retention_days = cfg.job_retention_days if cfg else 30
+
+    cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+
+    # Clean up Job records (scan jobs)
+    old_jobs = Job.query.filter(Job.created_at < cutoff_date).all()
+    jobs_deleted = len(old_jobs)
+    for job in old_jobs:
+        db.session.delete(job)
+
+    # Clean up ExportJob records and their files
+    old_export_jobs = ExportJob.query.filter(ExportJob.created_at < cutoff_date).all()
+    export_jobs_deleted = len(old_export_jobs)
+    files_deleted = 0
+
+    for job in old_export_jobs:
+        # Delete the export file if it exists
+        if job.file_path:
+            try:
+                file_path = Path(job.file_path)
+                if file_path.exists():
+                    file_path.unlink()
+                    files_deleted += 1
+            except Exception as e:
+                logger.warning(f"Failed to delete export file {job.file_path}: {e}")
+
+        db.session.delete(job)
+
+    db.session.commit()
+
+    logger.info(
+        "Cleanup completed: deleted %d Job record(s), %d ExportJob record(s), and %d export file(s) older than %d days",
+        jobs_deleted, export_jobs_deleted, files_deleted, retention_days
+    )
+
+    return {
+        'jobs_deleted': jobs_deleted,
+        'export_jobs_deleted': export_jobs_deleted,
+        'files_deleted': files_deleted,
+        'retention_days': retention_days
+    }

@@ -50,6 +50,13 @@ def get_beat_schedule():
                 'options': {
                     'expires': 600  # Task expires after 10 minutes if not executed
                 }
+            },
+            'daily-job-cleanup': {
+                'task': 'tasks.cleanup_old_jobs',
+                'schedule': crontab(minute='0', hour='0'),  # Run daily at midnight
+                'options': {
+                    'expires': 3600  # Task expires after 1 hour if not executed
+                }
             }
         }
 

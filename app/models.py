@@ -108,6 +108,7 @@ class AppConfig(db.Model, TimestampMixin):
     ol_app_name = db.Column(db.String(100), nullable=True)
     ol_contact_email = db.Column(db.String(200), nullable=True)
     scan_schedule = db.Column(db.String(100), nullable=True, default='*/15 * * * *')  # cron syntax, default: every 15 minutes
+    job_retention_days = db.Column(db.Integer, nullable=False, default=30)  # Delete jobs older than this many days
 
 
 class ExportTemplate(db.Model, TimestampMixin):

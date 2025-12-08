@@ -73,6 +73,19 @@
       </div>
       <button class="btn btn-primary btn-sm">Save Open Library Config</button>
     </form>
+
+    <h2 class="h5 mt-4">Job Retention</h2>
+    <p class="text-muted small mb-2">Automatically delete old jobs and exported files.</p>
+    <form method="post">
+      <div class="mb-2">
+        <div class="input-group" style="max-width: 180px;">
+          <input type="number" name="job_retention_days" class="form-control form-control-sm" value="{{ cfg.job_retention_days or 30 }}" min="1" max="365" required>
+          <span class="input-group-text">days</span>
+        </div>
+        <small class="text-muted d-block">Delete jobs older than this (default: 30)</small>
+      </div>
+      <button class="btn btn-primary btn-sm">Save</button>
+    </form>
   </div>
 </div>
 

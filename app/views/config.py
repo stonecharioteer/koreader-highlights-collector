@@ -99,6 +99,20 @@ def index():
                 flash(f'Invalid cron syntax: {str(e)}', 'danger')
             return redirect(url_for('config.index'))
 
+        if 'job_retention_days' in request.form:
+            try:
+                retention_days = int(request.form.get('job_retention_days', 30))
+                if retention_days < 1 or retention_days > 365:
+                    flash('Retention days must be between 1 and 365', 'danger')
+                    return redirect(url_for('config.index'))
+                cfg.job_retention_days = retention_days
+                db.session.add(cfg)
+                db.session.commit()
+                flash(f'Job retention policy updated: jobs older than {retention_days} days will be deleted automatically.', 'success')
+            except ValueError:
+                flash('Invalid retention days value', 'danger')
+            return redirect(url_for('config.index'))
+
     paths = SourcePath.query.order_by(SourcePath.enabled.desc(), SourcePath.path.asc()).all()
     templates = ExportTemplate.query.order_by(ExportTemplate.is_default.desc(), ExportTemplate.name).all()
     return render_template('config/index.html', paths=paths, cfg=cfg, templates=templates)
