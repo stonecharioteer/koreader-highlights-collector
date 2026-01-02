@@ -15,6 +15,7 @@ dependencies = [
   "requests>=2.31",
   "Pillow>=10.0",
   "croniter>=2.0",
+  "flower>=2.0",
 ]
 
 [tool.uv]

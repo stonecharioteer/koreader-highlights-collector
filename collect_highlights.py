@@ -22,17 +22,17 @@ import urllib.error
 def load_env_file(env_path: Path = None) -> Dict[str, str]:
     """Load environment variables from .env file."""
     if env_path is None:
-        env_path = Path(__file__).parent / '.env'
+        env_path = Path(__file__).parent / ".env"
 
     env_vars = {}
     if not env_path.exists():
         return env_vars
 
-    with open(env_path, 'r') as f:
+    with open(env_path, "r") as f:
         for line in f:
             line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                key, value = line.split('=', 1)
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
                 # Remove quotes if present
                 value = value.strip().strip('"').strip("'")
                 env_vars[key] = value
@@ -46,11 +46,11 @@ class LuaTableParser:
     @staticmethod
     def parse_file(filepath: Path) -> Dict[str, Any]:
         """Parse a Lua metadata file and return a Python dict."""
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Extract the return statement content
-        match = re.search(r'return\s+({.*})', content, re.DOTALL)
+        match = re.search(r"return\s+({.*})", content, re.DOTALL)
         if not match:
             return {}
 
@@ -66,17 +66,17 @@ class LuaTableParser:
         result = {}
 
         # Find annotations array using proper brace matching
-        annotations_str = LuaTableParser._extract_field_value(lua_str, 'annotations')
+        annotations_str = LuaTableParser._extract_field_value(lua_str, "annotations")
         if annotations_str:
-            result['annotations'] = LuaTableParser._parse_annotations(annotations_str)
+            result["annotations"] = LuaTableParser._parse_annotations(annotations_str)
 
         # Extract doc_props
-        doc_props_str = LuaTableParser._extract_field_value(lua_str, 'doc_props')
+        doc_props_str = LuaTableParser._extract_field_value(lua_str, "doc_props")
         if doc_props_str:
-            result['doc_props'] = LuaTableParser._parse_doc_props(doc_props_str)
+            result["doc_props"] = LuaTableParser._parse_doc_props(doc_props_str)
 
         # Extract simple string fields
-        for field in ['doc_path', 'partial_md5_checksum']:
+        for field in ["doc_path", "partial_md5_checksum"]:
             match = re.search(rf'\["{field}"\]\s*=\s*"([^"]*)"', lua_str)
             if match:
                 result[field] = match.group(1)
@@ -98,9 +98,9 @@ class LuaTableParser:
 
         for i in range(start_pos, len(lua_str)):
             char = lua_str[i]
-            if char == '{':
+            if char == "{":
                 brace_depth += 1
-            elif char == '}':
+            elif char == "}":
                 brace_depth -= 1
                 if brace_depth == 0:
                     end_pos = i
@@ -108,7 +108,7 @@ class LuaTableParser:
 
         if brace_depth == 0:
             # Extract content between braces (not including the braces themselves)
-            return lua_str[start_pos + 1:end_pos]
+            return lua_str[start_pos + 1 : end_pos]
 
         return None
 
@@ -124,20 +124,20 @@ class LuaTableParser:
         brace_depth = 0
         in_annotation = False
 
-        for line in annotations_str.split('\n'):
+        for line in annotations_str.split("\n"):
             # Check if this is the start of an annotation block
-            if re.match(r'\s*\[\d+\]\s*=\s*\{', line):
+            if re.match(r"\s*\[\d+\]\s*=\s*\{", line):
                 if current_block:
-                    blocks.append('\n'.join(current_block))
+                    blocks.append("\n".join(current_block))
                 current_block = [line]
                 brace_depth = 1
                 in_annotation = True
             elif in_annotation:
                 current_block.append(line)
                 # Count braces
-                brace_depth += line.count('{') - line.count('}')
+                brace_depth += line.count("{") - line.count("}")
                 if brace_depth == 0:
-                    blocks.append('\n'.join(current_block))
+                    blocks.append("\n".join(current_block))
                     current_block = []
                     in_annotation = False
 
@@ -146,13 +146,22 @@ class LuaTableParser:
             annotation = {}
 
             # Extract string fields
-            for field in ['chapter', 'color', 'datetime', 'page', 'text', 'drawer', 'pos0', 'pos1']:
+            for field in [
+                "chapter",
+                "color",
+                "datetime",
+                "page",
+                "text",
+                "drawer",
+                "pos0",
+                "pos1",
+            ]:
                 match = re.search(rf'\["{field}"\]\s*=\s*"((?:[^"\\]|\\.)*)"', block)
                 if match:
                     annotation[field] = match.group(1)
 
             # Extract numeric fields
-            for field in ['pageno']:
+            for field in ["pageno"]:
                 match = re.search(rf'\["{field}"\]\s*=\s*(\d+)', block)
                 if match:
                     annotation[field] = int(match.group(1))
@@ -168,8 +177,17 @@ class LuaTableParser:
         doc_props = {}
 
         # Extract string fields
-        for field in ['authors', 'title', 'language', 'description', 'identifiers', 'series']:
-            match = re.search(rf'\["{field}"\]\s*=\s*"((?:[^"\\]|\\.)*)"', doc_props_str)
+        for field in [
+            "authors",
+            "title",
+            "language",
+            "description",
+            "identifiers",
+            "series",
+        ]:
+            match = re.search(
+                rf'\["{field}"\]\s*=\s*"((?:[^"\\]|\\.)*)"', doc_props_str
+            )
             if match:
                 doc_props[field] = match.group(1)
 
@@ -211,60 +229,60 @@ class HighlightsCollector:
         """Process a single metadata file."""
         data = LuaTableParser.parse_file(filepath)
 
-        annotations = data.get('annotations')
+        annotations = data.get("annotations")
         if not annotations:
             return  # No highlights in this file
 
         print(f"  Processing: {filepath.name} ({len(annotations)} highlights)")
 
         # Get book metadata
-        doc_props = data.get('doc_props', {})
-        book_title = doc_props.get('title', 'Unknown Title')
-        book_authors = doc_props.get('authors', 'Unknown Author')
-        book_id = data.get('partial_md5_checksum', str(filepath))
+        doc_props = data.get("doc_props", {})
+        book_title = doc_props.get("title", "Unknown Title")
+        book_authors = doc_props.get("authors", "Unknown Author")
+        book_id = data.get("partial_md5_checksum", str(filepath))
 
         # Initialize book entry if not exists
         if book_id not in self.books:
             self.books[book_id] = {
-                'title': book_title,
-                'authors': book_authors,
-                'identifiers': doc_props.get('identifiers', ''),
-                'language': doc_props.get('language', ''),
-                'description': doc_props.get('description', ''),
-                'file_path': data.get('doc_path', ''),
-                'highlights': []
+                "title": book_title,
+                "authors": book_authors,
+                "identifiers": doc_props.get("identifiers", ""),
+                "language": doc_props.get("language", ""),
+                "description": doc_props.get("description", ""),
+                "file_path": data.get("doc_path", ""),
+                "highlights": [],
             }
 
         # Add highlights with device_id
-        for annotation in data['annotations']:
+        for annotation in data["annotations"]:
             # Determine highlight type based on fields present
-            has_color = 'color' in annotation
-            has_text = 'text' in annotation and annotation.get('text', '')
-            has_positions = 'pos0' in annotation and 'pos1' in annotation
+            has_color = "color" in annotation
+            has_text = "text" in annotation and annotation.get("text", "")
+            has_positions = "pos0" in annotation and "pos1" in annotation
 
             if has_color and has_text and has_positions:
-                highlight_type = 'highlight'
+                highlight_type = "highlight"
             elif has_color and has_positions and not has_text:
-                highlight_type = 'highlight_empty'
+                highlight_type = "highlight_empty"
             elif has_color and not has_positions:
-                highlight_type = 'highlight_no_position'
+                highlight_type = "highlight_no_position"
             elif not has_color and has_text:
-                highlight_type = 'bookmark'
+                highlight_type = "bookmark"
             else:
-                highlight_type = 'unknown'
+                highlight_type = "unknown"
 
             highlight = {
-                'highlight_type': highlight_type,
-                'text': annotation.get('text', ''),
-                'chapter': annotation.get('chapter', ''),
-                'page_number': annotation.get('pageno', 0),
-                'datetime': annotation.get('datetime', ''),
-                'color': annotation.get('color', ''),
-                'drawer': annotation.get('drawer', ''),
-                'device_id': device_id,
-                'page_xpath': annotation.get('page', ''),
+                "highlight_type": highlight_type,
+                "text": annotation.get("text", ""),
+                "chapter": annotation.get("chapter", ""),
+                "page_number": annotation.get("pageno", 0),
+                "datetime": annotation.get("datetime", ""),
+                "color": annotation.get("color", ""),
+                "drawer": annotation.get("drawer", ""),
+                "device_id": device_id,
+                "page_xpath": annotation.get("page", ""),
             }
-            self.books[book_id]['highlights'].append(highlight)
+            self.books[book_id]["highlights"].append(highlight)
 
     def export_json(self, output_path: Path):
         """Export collected highlights to JSON."""
@@ -272,42 +290,44 @@ class HighlightsCollector:
         books_list = []
         for book_id, book_data in self.books.items():
             # Sort highlights by datetime
-            book_data['highlights'].sort(key=lambda x: x.get('datetime', ''))
+            book_data["highlights"].sort(key=lambda x: x.get("datetime", ""))
 
             # Add book_id to output
-            book_data['book_id'] = book_id
+            book_data["book_id"] = book_id
             books_list.append(book_data)
 
         # Sort books by title
-        books_list.sort(key=lambda x: x.get('title', '').lower())
+        books_list.sort(key=lambda x: x.get("title", "").lower())
 
         output = {
-            'generated_at': datetime.now().isoformat(),
-            'total_books': len(books_list),
-            'total_highlights': sum(len(book['highlights']) for book in books_list),
-            'books': books_list
+            "generated_at": datetime.now().isoformat(),
+            "total_books": len(books_list),
+            "total_highlights": sum(len(book["highlights"]) for book in books_list),
+            "books": books_list,
         }
 
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(output, f, indent=2, ensure_ascii=False)
 
-        print(f"\nExported {output['total_highlights']} highlights from {output['total_books']} books")
+        print(
+            f"\nExported {output['total_highlights']} highlights from {output['total_books']} books"
+        )
         print(f"Output file: {output_path}")
 
     def print_summary(self):
         """Print a summary of collected highlights."""
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Total books: {len(self.books)}")
-        total_highlights = sum(len(book['highlights']) for book in self.books.values())
+        total_highlights = sum(len(book["highlights"]) for book in self.books.values())
         print(f"Total highlights: {total_highlights}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
 
 class KarakeepClient:
     """Client for interacting with Karakeep API."""
 
     def __init__(self, base_url: str, email: str, password: str):
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.email = email
         self.password = password
         self.token: Optional[str] = None
@@ -316,35 +336,32 @@ class KarakeepClient:
     def _make_request(
         self,
         endpoint: str,
-        method: str = 'GET',
+        method: str = "GET",
         data: Optional[Dict] = None,
-        require_auth: bool = True
+        require_auth: bool = True,
     ) -> Dict[str, Any]:
         """Make an HTTP request to Karakeep API."""
         url = f"{self.base_url}/api/v1{endpoint}"
 
         headers = {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
         }
 
         if require_auth and self.token:
-            headers['Authorization'] = f'Bearer {self.token}'
+            headers["Authorization"] = f"Bearer {self.token}"
 
-        req_data = json.dumps(data).encode('utf-8') if data else None
+        req_data = json.dumps(data).encode("utf-8") if data else None
 
         request = urllib.request.Request(
-            url,
-            data=req_data,
-            headers=headers,
-            method=method
+            url, data=req_data, headers=headers, method=method
         )
 
         try:
             with urllib.request.urlopen(request) as response:
-                response_data = response.read().decode('utf-8')
+                response_data = response.read().decode("utf-8")
                 return json.loads(response_data) if response_data else {}
         except urllib.error.HTTPError as e:
-            error_body = e.read().decode('utf-8')
+            error_body = e.read().decode("utf-8")
             raise Exception(f"HTTP {e.code} error: {error_body}")
         except Exception as e:
             raise Exception(f"Request failed: {e}")
@@ -353,12 +370,12 @@ class KarakeepClient:
         """Authenticate with Karakeep and get Bearer token."""
         try:
             response = self._make_request(
-                '/users/signin',
-                method='POST',
-                data={'email': self.email, 'password': self.password},
-                require_auth=False
+                "/users/signin",
+                method="POST",
+                data={"email": self.email, "password": self.password},
+                require_auth=False,
             )
-            self.token = response.get('token')
+            self.token = response.get("token")
             return bool(self.token)
         except Exception as e:
             print(f"Authentication failed: {e}")
@@ -368,8 +385,8 @@ class KarakeepClient:
         """Search for bookmarks matching query."""
         try:
             encoded_query = urllib.parse.quote(query)
-            response = self._make_request(f'/bookmarks/search?q={encoded_query}')
-            return response.get('bookmarks', [])
+            response = self._make_request(f"/bookmarks/search?q={encoded_query}")
+            return response.get("bookmarks", [])
         except Exception as e:
             print(f"Search failed: {e}")
             return []
@@ -377,9 +394,9 @@ class KarakeepClient:
     def get_all_tags(self) -> Dict[str, str]:
         """Get all tags and return as dict of name -> id."""
         try:
-            response = self._make_request('/tags')
-            tags = response.get('tags', [])
-            return {tag['name']: tag['id'] for tag in tags}
+            response = self._make_request("/tags")
+            tags = response.get("tags", [])
+            return {tag["name"]: tag["id"] for tag in tags}
         except Exception as e:
             print(f"Failed to get tags: {e}")
             return {}
@@ -387,12 +404,8 @@ class KarakeepClient:
     def create_tag(self, name: str) -> Optional[str]:
         """Create a new tag and return its ID."""
         try:
-            response = self._make_request(
-                '/tags',
-                method='POST',
-                data={'name': name}
-            )
-            return response.get('id')
+            response = self._make_request("/tags", method="POST", data={"name": name})
+            return response.get("id")
         except Exception as e:
             print(f"Failed to create tag '{name}': {e}")
             return None
@@ -419,19 +432,12 @@ class KarakeepClient:
     def create_bookmark(self, text: str, note: Optional[str] = None) -> Optional[str]:
         """Create a text bookmark and return its ID."""
         try:
-            data = {
-                'type': 'text',
-                'text': text
-            }
+            data = {"type": "text", "text": text}
             if note:
-                data['note'] = note
+                data["note"] = note
 
-            response = self._make_request(
-                '/bookmarks',
-                method='POST',
-                data=data
-            )
-            return response.get('id')
+            response = self._make_request("/bookmarks", method="POST", data=data)
+            return response.get("id")
         except Exception as e:
             print(f"Failed to create bookmark: {e}")
             return None
@@ -440,9 +446,9 @@ class KarakeepClient:
         """Attach tags to a bookmark."""
         try:
             self._make_request(
-                f'/bookmarks/{bookmark_id}/tags',
-                method='POST',
-                data={'tagIds': tag_ids}
+                f"/bookmarks/{bookmark_id}/tags",
+                method="POST",
+                data={"tagIds": tag_ids},
             )
             return True
         except Exception as e:
@@ -452,8 +458,8 @@ class KarakeepClient:
     def get_all_lists(self) -> List[Dict[str, Any]]:
         """Get all lists."""
         try:
-            response = self._make_request('/lists')
-            return response.get('lists', [])
+            response = self._make_request("/lists")
+            return response.get("lists", [])
         except Exception as e:
             print(f"Failed to get lists: {e}")
             return []
@@ -463,14 +469,14 @@ class KarakeepClient:
         lists = self.get_all_lists()
         name_lower = name.lower()
         for lst in lists:
-            if lst.get('name', '').lower() == name_lower:
+            if lst.get("name", "").lower() == name_lower:
                 return lst
         return None
 
     def get_list(self, list_id: str) -> Optional[Dict[str, Any]]:
         """Get a list by its ID."""
         try:
-            return self._make_request(f'/lists/{list_id}')
+            return self._make_request(f"/lists/{list_id}")
         except Exception as e:
             print(f"Failed to get list: {e}")
             return None
@@ -479,8 +485,7 @@ class KarakeepClient:
         """Add a bookmark to a list."""
         try:
             self._make_request(
-                f'/lists/{list_id}/bookmarks/{bookmark_id}',
-                method='PUT'
+                f"/lists/{list_id}/bookmarks/{bookmark_id}", method="PUT"
             )
             return True
         except Exception as e:
@@ -491,10 +496,10 @@ class KarakeepClient:
 def cmd_collect(args):
     """Handle the collect subcommand."""
     print(f"KOllector CLI")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Base path: {args.base_path}")
     print(f"Output file: {args.output}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     collector = HighlightsCollector(args.base_path)
     collector.collect()
@@ -505,12 +510,12 @@ def cmd_collect(args):
 def cmd_publish(args):
     """Handle the publish subcommand."""
     print(f"KoReader → Karakeep Publisher")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Input file: {args.input}")
     print(f"Karakeep URL: {args.karakeep_url}")
     print(f"List: {args.list_name}")
     print(f"Dry run: {args.dry_run}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # Load highlights JSON
     if not args.input.exists():
@@ -518,20 +523,22 @@ def cmd_publish(args):
         print("Run 'collect' command first to generate highlights.json")
         return
 
-    with open(args.input, 'r', encoding='utf-8') as f:
+    with open(args.input, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     # Filter only real text highlights (not bookmarks or empty)
     highlights_to_publish = []
-    for book in data['books']:
-        for highlight in book['highlights']:
-            if highlight['highlight_type'] == 'highlight' and highlight.get('text'):
-                highlights_to_publish.append({
-                    'book_title': book['title'],
-                    'book_authors': book['authors'],
-                    'book_id': book['book_id'],
-                    'highlight': highlight
-                })
+    for book in data["books"]:
+        for highlight in book["highlights"]:
+            if highlight["highlight_type"] == "highlight" and highlight.get("text"):
+                highlights_to_publish.append(
+                    {
+                        "book_title": book["title"],
+                        "book_authors": book["authors"],
+                        "book_id": book["book_id"],
+                        "highlight": highlight,
+                    }
+                )
 
     print(f"Found {len(highlights_to_publish)} highlights to publish")
     print(f"(Filtered from {data['total_highlights']} total annotations)\n")
@@ -546,7 +553,7 @@ def cmd_publish(args):
             print(f"Highlights would be added to list: '{args.list_name}'\n")
         print("Sample highlights that would be published:")
         for i, item in enumerate(highlights_to_publish[:5], 1):
-            h = item['highlight']
+            h = item["highlight"]
             print(f"\n{i}. Book: {item['book_title']}")
             print(f"   Chapter: {h['chapter']}")
             print(f"   Text: {h['text'][:80]}...")
@@ -570,12 +577,15 @@ def cmd_publish(args):
         print(f"Resolving list '{args.list_name}'...")
 
         # Check if it looks like an ID (alphanumeric, no spaces)
-        if args.list_name.replace('_', '').replace('-', '').isalnum() and ' ' not in args.list_name:
+        if (
+            args.list_name.replace("_", "").replace("-", "").isalnum()
+            and " " not in args.list_name
+        ):
             # Treat as ID
             list_info = client.get_list(args.list_name)
             if list_info:
                 list_id = args.list_name
-                list_name = list_info.get('name', 'Unknown')
+                list_name = list_info.get("name", "Unknown")
                 print(f"✓ Found list by ID: '{list_name}' ({list_id})\n")
             else:
                 print(f"✗ List ID '{args.list_name}' not found")
@@ -583,8 +593,8 @@ def cmd_publish(args):
             # Treat as name - search for it
             list_info = client.find_list_by_name(args.list_name)
             if list_info:
-                list_id = list_info.get('id')
-                list_name = list_info.get('name')
+                list_id = list_info.get("id")
+                list_name = list_info.get("name")
                 print(f"✓ Found list: '{list_name}' ({list_id})\n")
             else:
                 print(f"✗ List '{args.list_name}' not found")
@@ -608,9 +618,9 @@ def cmd_publish(args):
     failed_count = 0
 
     for i, item in enumerate(highlights_to_publish, 1):
-        book_title = item['book_title']
-        h = item['highlight']
-        text = h['text']
+        book_title = item["book_title"]
+        h = item["highlight"]
+        text = h["text"]
 
         # Progress indicator
         if i % 10 == 0 or i == 1:
@@ -625,24 +635,24 @@ def cmd_publish(args):
             # Check if any result has the same book tag
             book_tag_name = f"book:{book_title}"
             for bookmark in existing:
-                bookmark_tags = [t['name'] for t in bookmark.get('tags', [])]
+                bookmark_tags = [t["name"] for t in bookmark.get("tags", [])]
                 if book_tag_name in bookmark_tags:
                     skipped_count += 1
                     continue
 
         # Create metadata note
         metadata = {
-            'chapter': h['chapter'],
-            'page': h.get('page_number', 'N/A'),
-            'datetime': h['datetime'],
-            'book': {
-                'title': book_title,
-                'authors': item['book_authors'],
-                'id': item['book_id']
+            "chapter": h["chapter"],
+            "page": h.get("page_number", "N/A"),
+            "datetime": h["datetime"],
+            "book": {
+                "title": book_title,
+                "authors": item["book_authors"],
+                "id": item["book_id"],
             },
-            'device': h['device_id'],
-            'color': h.get('color', ''),
-            'source': 'kollector'
+            "device": h["device_id"],
+            "color": h.get("color", ""),
+            "source": "kollector",
         }
         note = json.dumps(metadata, indent=2)
 
@@ -654,10 +664,7 @@ def cmd_publish(args):
             continue
 
         # Ensure and attach tags
-        tag_names = [
-            f"book:{book_title}",
-            f"device:{h['device_id']}"
-        ]
+        tag_names = [f"book:{book_title}", f"device:{h['device_id']}"]
 
         tag_ids = []
         for tag_name in tag_names:
@@ -677,14 +684,14 @@ def cmd_publish(args):
         published_count += 1
 
     # Print summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"SUMMARY")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Published: {published_count}")
     print(f"Skipped (duplicates): {skipped_count}")
     print(f"Failed: {failed_count}")
     print(f"Total processed: {len(highlights_to_publish)}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
 
 def main():
@@ -692,8 +699,8 @@ def main():
     env_vars = load_env_file()
 
     parser = argparse.ArgumentParser(
-        description='KOllector CLI - Manage and collect KoReader highlights',
-        epilog='''
+        description="KOllector CLI - Manage and collect KoReader highlights",
+        epilog="""
 Examples:
   # Collect highlights from default location
   %(prog)s collect
@@ -706,23 +713,23 @@ Examples:
   %(prog)s collect && %(prog)s publish
 
 Use "%(prog)s <command> --help" for more information on a command.
-        ''',
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     subparsers = parser.add_subparsers(
-        title='commands',
-        description='Available commands',
-        dest='command',
-        required=True
+        title="commands",
+        description="Available commands",
+        dest="command",
+        required=True,
     )
 
     # Collect subcommand
     collect_parser = subparsers.add_parser(
-        'collect',
-        help='Collect highlights from KoReader devices',
-        description='Scan syncthing folders and collect all KoReader highlights into a JSON file',
-        epilog='''
+        "collect",
+        help="Collect highlights from KoReader devices",
+        description="Scan syncthing folders and collect all KoReader highlights into a JSON file",
+        epilog="""
 Examples:
   # Collect with default settings
   %(prog)s
@@ -732,29 +739,29 @@ Examples:
 
   # Dated output files
   %(prog)s --output highlights_$(date +%%Y%%m%%d).json
-        ''',
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     collect_parser.add_argument(
-        '--base-path',
+        "--base-path",
         type=Path,
-        default=Path.home() / 'syncthing' / 'ebooks-highlights',
-        help='Base path for syncthing highlights (default: ~/syncthing/ebooks-highlights)'
+        default=Path.home() / "syncthing" / "ebooks-highlights",
+        help="Base path for syncthing highlights (default: ~/syncthing/ebooks-highlights)",
     )
     collect_parser.add_argument(
-        '--output',
+        "--output",
         type=Path,
-        default=Path('highlights.json'),
-        help='Output JSON file path (default: highlights.json)'
+        default=Path("highlights.json"),
+        help="Output JSON file path (default: highlights.json)",
     )
     collect_parser.set_defaults(func=cmd_collect)
 
     # Publish subcommand
     publish_parser = subparsers.add_parser(
-        'publish',
-        help='Publish highlights to Karakeep',
-        description='Push collected highlights to Karakeep with automatic tagging and duplicate detection',
-        epilog='''
+        "publish",
+        help="Publish highlights to Karakeep",
+        description="Push collected highlights to Karakeep with automatic tagging and duplicate detection",
+        epilog="""
 Examples:
   # Preview what would be published (recommended first run)
   %(prog)s --dry-run
@@ -771,64 +778,62 @@ Examples:
 Credentials:
   Set KARAKEEP_ID, KARAKEEP_PASSWORD, and optionally KARAKEEP_URL in .env file
   or use --email and --password arguments.
-        ''',
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     publish_parser.add_argument(
-        '--input',
+        "--input",
         type=Path,
-        default=Path('highlights.json'),
-        help='Input JSON file from collect command (default: highlights.json)'
+        default=Path("highlights.json"),
+        help="Input JSON file from collect command (default: highlights.json)",
     )
     publish_parser.add_argument(
-        '--karakeep-url',
+        "--karakeep-url",
         type=str,
-        default=env_vars.get('KARAKEEP_URL', 'http://192.168.100.230:23001'),
-        help='Karakeep server URL (default: from .env or http://192.168.100.230:23001)'
+        default=env_vars.get("KARAKEEP_URL", "http://192.168.100.230:23001"),
+        help="Karakeep server URL (default: from .env or http://192.168.100.230:23001)",
     )
     publish_parser.add_argument(
-        '--email',
+        "--email",
         type=str,
-        default=env_vars.get('KARAKEEP_ID'),
-        help='Karakeep email/username (default: from .env KARAKEEP_ID)'
+        default=env_vars.get("KARAKEEP_ID"),
+        help="Karakeep email/username (default: from .env KARAKEEP_ID)",
     )
     publish_parser.add_argument(
-        '--password',
+        "--password",
         type=str,
-        default=env_vars.get('KARAKEEP_PASSWORD'),
-        help='Karakeep password (default: from .env KARAKEEP_PASSWORD)'
+        default=env_vars.get("KARAKEEP_PASSWORD"),
+        help="Karakeep password (default: from .env KARAKEEP_PASSWORD)",
     )
     publish_parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Preview what would be published without making changes'
+        "--dry-run",
+        action="store_true",
+        help="Preview what would be published without making changes",
     )
     publish_parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Publish even if duplicates are detected'
+        "--force", action="store_true", help="Publish even if duplicates are detected"
     )
     publish_parser.add_argument(
-        '--list-name',
+        "--list-name",
         type=str,
-        default='Book Quotes',
-        help='Karakeep list name or ID to add highlights to (default: "Book Quotes")'
+        default="Book Quotes",
+        help='Karakeep list name or ID to add highlights to (default: "Book Quotes")',
     )
     publish_parser.set_defaults(func=cmd_publish)
 
     args = parser.parse_args()
 
     # Validate credentials for publish command
-    if args.command == 'publish' and not args.dry_run:
+    if args.command == "publish" and not args.dry_run:
         if not args.email or not args.password:
             parser.error(
-                'Karakeep credentials required. Either:\n'
-                '  1. Set KARAKEEP_ID and KARAKEEP_PASSWORD in .env file, or\n'
-                '  2. Use --email and --password arguments'
+                "Karakeep credentials required. Either:\n"
+                "  1. Set KARAKEEP_ID and KARAKEEP_PASSWORD in .env file, or\n"
+                "  2. Use --email and --password arguments"
             )
 
     args.func(args)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

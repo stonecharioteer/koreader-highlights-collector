@@ -17,9 +17,9 @@
       <p class="card-text text-muted">
         <strong>Template:</strong> {{ job.template.name }}<br>
         <strong>Job ID:</strong> <code>{{ job.job_id }}</code><br>
-        <strong>Created:</strong> {{ job.created_at.strftime('%b %d, %Y at %I:%M %p') }}<br>
+        <strong>Created:</strong> <span class="local-time" data-utc="{{ job.created_at.isoformat() }}Z">{{ job.created_at.strftime('%b %d, %Y at %I:%M %p') }}</span><br>
         {% if job.completed_at %}
-        <strong>Completed:</strong> {{ job.completed_at.strftime('%b %d, %Y at %I:%M %p') }}<br>
+        <strong>Completed:</strong> <span class="local-time" data-utc="{{ job.completed_at.isoformat() }}Z">{{ job.completed_at.strftime('%b %d, %Y at %I:%M %p') }}</span><br>
         {% endif %}
       </p>
 
@@ -56,6 +56,23 @@
 </div>
 
 <script>
+// Convert UTC timestamps to local timezone
+document.querySelectorAll('.local-time').forEach(el => {
+  const utcTime = el.dataset.utc;
+  if (utcTime) {
+    const date = new Date(utcTime);
+    const options = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    };
+    el.textContent = date.toLocaleString('en-US', options);
+  }
+});
+
 // Auto-refresh job status if not completed/failed
 {% if job.status in ['pending', 'processing'] %}
 const jobId = '{{ job.job_id }}';

@@ -31,9 +31,9 @@
           </h5>
           <p class="mb-1 text-muted small">
             Template: {{ job.template.name }} •
-            Created: {{ job.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+            Created: <span class="local-time" data-utc="{{ job.created_at.isoformat() }}Z">{{ job.created_at.strftime('%b %d, %Y at %I:%M %p') }}</span>
             {% if job.completed_at %}
-            • Completed: {{ job.completed_at.strftime('%b %d, %Y at %I:%M %p') }}
+            • Completed: <span class="local-time" data-utc="{{ job.completed_at.isoformat() }}Z">{{ job.completed_at.strftime('%b %d, %Y at %I:%M %p') }}</span>
             {% endif %}
           </p>
         </div>
@@ -59,4 +59,23 @@
   </div>
   {% endif %}
 </div>
+
+<script>
+// Convert UTC timestamps to local timezone
+document.querySelectorAll('.local-time').forEach(el => {
+  const utcTime = el.dataset.utc;
+  if (utcTime) {
+    const date = new Date(utcTime);
+    const options = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    };
+    el.textContent = date.toLocaleString('en-US', options);
+  }
+});
+</script>
 {% endblock %}

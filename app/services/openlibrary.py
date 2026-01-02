@@ -27,43 +27,53 @@ def extract_key(url: str) -> Optional[str]:
     return None
 
 
-def fetch_from_search(query: str, app_name: Optional[str], email: Optional[str]) -> Dict[str, Optional[str]]:
+def fetch_from_search(
+    query: str, app_name: Optional[str], email: Optional[str]
+) -> Dict[str, Optional[str]]:
     sess = _session(app_name, email)
     resp = sess.get(f"{OL_BASE}/search.json", params={"q": query}, timeout=10)
     resp.raise_for_status()
     data = resp.json()
-    docs: List[dict] = data.get('docs') or []
+    docs: List[dict] = data.get("docs") or []
     if not docs:
         return {"title": None, "authors": None, "image": None, "url": None}
     d0 = docs[0]
-    title = d0.get('title')
-    authors = ", ".join(d0.get('author_name') or []) or None
-    cover_id = d0.get('cover_i')
+    title = d0.get("title")
+    authors = ", ".join(d0.get("author_name") or []) or None
+    cover_id = d0.get("cover_i")
     image = COVERS.format(id=cover_id) if cover_id else None
-    key = d0.get('key')  # e.g., "/works/OL...W"
+    key = d0.get("key")  # e.g., "/works/OL...W"
     url = f"{OL_BASE}{key}" if key else None
     return {"title": title, "authors": authors, "image": image, "url": url}
 
 
-def search(query: str, app_name: Optional[str], email: Optional[str], limit: int = 5) -> List[Dict[str, Optional[str]]]:
+def search(
+    query: str, app_name: Optional[str], email: Optional[str], limit: int = 5
+) -> List[Dict[str, Optional[str]]]:
     sess = _session(app_name, email)
-    resp = sess.get(f"{OL_BASE}/search.json", params={"q": query, "limit": limit}, timeout=10)
+    resp = sess.get(
+        f"{OL_BASE}/search.json", params={"q": query, "limit": limit}, timeout=10
+    )
     resp.raise_for_status()
     data = resp.json()
-    docs: List[dict] = data.get('docs') or []
+    docs: List[dict] = data.get("docs") or []
     results: List[Dict[str, Optional[str]]] = []
     for d in docs[:limit]:
-        title = d.get('title')
-        authors = ", ".join(d.get('author_name') or []) or None
-        cover_id = d.get('cover_i')
+        title = d.get("title")
+        authors = ", ".join(d.get("author_name") or []) or None
+        cover_id = d.get("cover_i")
         image = COVERS.format(id=cover_id) if cover_id else None
-        key = d.get('key')  # "/works/OL...W"
+        key = d.get("key")  # "/works/OL...W"
         url = f"{OL_BASE}{key}" if key else None
-        results.append({"title": title, "authors": authors, "image": image, "url": url, "key": key})
+        results.append(
+            {"title": title, "authors": authors, "image": image, "url": url, "key": key}
+        )
     return results
 
 
-def fetch_from_url(url: str, app_name: Optional[str], email: Optional[str]) -> Dict[str, Optional[str]]:
+def fetch_from_url(
+    url: str, app_name: Optional[str], email: Optional[str]
+) -> Dict[str, Optional[str]]:
     sess = _session(app_name, email)
     key = extract_key(url)
     if not key:
@@ -72,27 +82,32 @@ def fetch_from_url(url: str, app_name: Optional[str], email: Optional[str]) -> D
     resp = sess.get(f"{OL_BASE}{key}.json", timeout=10)
     resp.raise_for_status()
     data = resp.json()
-    title = data.get('title')
+    title = data.get("title")
     image = None
-    covers = data.get('covers') or []
+    covers = data.get("covers") or []
     if covers:
         image = COVERS.format(id=covers[0])
     # Authors
     authors = None
-    author_entries = data.get('authors') or []
+    author_entries = data.get("authors") or []
     names: List[str] = []
     for ae in author_entries[:3]:  # cap to 3 lookups
-        akey = (ae.get('author') or {}).get('key')
+        akey = (ae.get("author") or {}).get("key")
         if not akey:
             continue
         try:
             ar = sess.get(f"{OL_BASE}{akey}.json", timeout=10)
             if ar.ok:
-                aname = (ar.json() or {}).get('name')
+                aname = (ar.json() or {}).get("name")
                 if aname:
                     names.append(aname)
         except Exception:
             continue
     if names:
         authors = ", ".join(names)
-    return {"title": title, "authors": authors, "image": image, "url": f"{OL_BASE}{key}"}
+    return {
+        "title": title,
+        "authors": authors,
+        "image": image,
+        "url": f"{OL_BASE}{key}",
+    }

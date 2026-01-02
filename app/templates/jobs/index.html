@@ -3,9 +3,18 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h4 m-0">Background Jobs</h1>
-  <button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
-    <i class="fa-solid fa-rotate"></i> Refresh
-  </button>
+  <div class="btn-group">
+    <button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
+      <i class="fa-solid fa-rotate"></i> Refresh
+    </button>
+    {% if jobs|selectattr('status', 'equalto', 'completed')|list %}
+    <form method="post" action="{{ url_for('jobs.clear_completed') }}" class="d-inline" onsubmit="return confirm('Clear all completed jobs? This cannot be undone.');">
+      <button type="submit" class="btn btn-sm btn-outline-danger">
+        <i class="fa-solid fa-trash"></i> Clear Completed
+      </button>
+    </form>
+    {% endif %}
+  </div>
 </div>
 
 <p class="text-muted small">
@@ -45,11 +54,11 @@
         </span>
       </td>
       <td>
-        <code class="text-muted small">{{ job.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</code>
+        <code class="text-muted small local-time" data-utc="{{ job.created_at.isoformat() }}Z">{{ job.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</code>
       </td>
       <td>
         {% if job.completed_at %}
-          <code class="text-muted small">{{ job.completed_at.strftime('%Y-%m-%d %H:%M:%S') }}</code>
+          <code class="text-muted small local-time" data-utc="{{ job.completed_at.isoformat() }}Z">{{ job.completed_at.strftime('%Y-%m-%d %H:%M:%S') }}</code>
         {% else %}
           <span class="text-muted">-</span>
         {% endif %}
@@ -97,6 +106,20 @@
 </table>
 
 <script>
+// Convert UTC timestamps to local timezone
+document.querySelectorAll('.local-time').forEach(el => {
+  const utcTime = el.dataset.utc;
+  if (utcTime) {
+    const date = new Date(utcTime);
+    el.textContent = date.getFullYear() + '-' +
+      String(date.getMonth() + 1).padStart(2, '0') + '-' +
+      String(date.getDate()).padStart(2, '0') + ' ' +
+      String(date.getHours()).padStart(2, '0') + ':' +
+      String(date.getMinutes()).padStart(2, '0') + ':' +
+      String(date.getSeconds()).padStart(2, '0');
+  }
+});
+
 // Auto-refresh processing jobs every 5 seconds
 (function() {
   const hasProcessing = {{ 'true' if jobs|selectattr('status', 'equalto', 'processing')|list else 'false' }};

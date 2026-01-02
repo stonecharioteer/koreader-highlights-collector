@@ -9,13 +9,14 @@ def main():
     with app.app_context():
         # Create tables
         from app.models import ExportTemplate, ExportJob
+
         db.create_all()
 
         # Add default template
         default = ExportTemplate.query.filter_by(is_default=True).first()
         if not default:
             default_template = ExportTemplate(
-                name='Blog Post (Markdown)',
+                name="Blog Post (Markdown)",
                 is_default=True,
                 template_content="""---
 title: "Highlights from {{ book.clean_title or book.raw_title }}"
@@ -58,7 +59,7 @@ cover: cover.jpg
 {% endfor %}
 
 *Exported from KOllector on {{ current_timestamp }}*
-"""
+""",
             )
             db.session.add(default_template)
             db.session.commit()
@@ -67,5 +68,5 @@ cover: cover.jpg
             print(f"✓ Default template already exists: {default.name}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

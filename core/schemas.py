@@ -4,11 +4,11 @@ from pydantic import BaseModel, model_validator
 
 
 class HighlightKind(str, Enum):
-    highlight = 'highlight'
-    highlight_empty = 'highlight_empty'
-    highlight_no_position = 'highlight_no_position'
-    bookmark = 'bookmark'
-    unknown = 'unknown'
+    highlight = "highlight"
+    highlight_empty = "highlight_empty"
+    highlight_no_position = "highlight_no_position"
+    bookmark = "bookmark"
+    unknown = "unknown"
 
 
 class ParserAnnotation(BaseModel):

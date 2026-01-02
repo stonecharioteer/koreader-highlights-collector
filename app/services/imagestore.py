@@ -11,19 +11,23 @@ def fetch_image_from_url(remote_url: str) -> Optional[Tuple[bytes, str]]:
     Returns tuple of (bytes, content_type) on success, None on failure.
     """
     if not remote_url:
-        logger.warning('fetch_image_from_url: missing remote_url')
+        logger.warning("fetch_image_from_url: missing remote_url")
         return None
 
     try:
-        logger.debug(f'Fetching image from {remote_url}')
+        logger.debug(f"Fetching image from {remote_url}")
         response = requests.get(remote_url, timeout=10)
         if response.ok:
-            content_type = response.headers.get('content-type', 'image/jpeg')
-            logger.info(f'Successfully fetched image from {remote_url} ({len(response.content)} bytes, {content_type})')
+            content_type = response.headers.get("content-type", "image/jpeg")
+            logger.info(
+                f"Successfully fetched image from {remote_url} ({len(response.content)} bytes, {content_type})"
+            )
             return (response.content, content_type)
         else:
-            logger.warning(f'Failed to fetch image from {remote_url}: HTTP {response.status_code}')
+            logger.warning(
+                f"Failed to fetch image from {remote_url}: HTTP {response.status_code}"
+            )
             return None
     except Exception as e:
-        logger.error(f'Error fetching image from {remote_url}: {e}')
+        logger.error(f"Error fetching image from {remote_url}: {e}")
         return None

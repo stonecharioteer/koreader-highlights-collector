@@ -11,4 +11,3 @@ def iter_metadata_files(base_path: Path) -> Iterator[Path]:
             continue
         for metadata_file in device_folder.rglob("metadata.*.lua"):
             yield metadata_file
-

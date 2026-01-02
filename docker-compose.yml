@@ -48,7 +48,7 @@ services:
       EXPORT_DIR: /data/exports
     volumes:
       - ./:/app
-      - ./sample-highlights:/data/highlights:ro
+      - ./highlights:/data/highlights:ro
       - ./exports:/data/exports
     depends_on:
       - db
@@ -66,10 +66,24 @@ services:
       EXPORT_DIR: /data/exports
     volumes:
       - ./:/app
-      - ./sample-highlights:/data/highlights:ro
+      - ./highlights:/data/highlights:ro
       - ./exports:/data/exports
     depends_on:
       - db
+      - rabbitmq
+      - worker
+
+  flower:
+    build: .
+    command: ["celery", "-A", "tasks.celery", "flower", "--port=5555"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://highlights:highlights@db:5432/highlights
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672//
+    ports:
+      - "5555:5555"
+    depends_on:
       - rabbitmq
       - worker
 

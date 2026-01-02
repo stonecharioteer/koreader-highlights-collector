@@ -11,4 +11,3 @@ if str(ROOT) not in sys.path:
 # Use a lightweight SQLite DB during tests
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("HIGHLIGHTS_BASE_PATH", str(ROOT / "sample-highlights"))
-
